@@ -1,13 +1,19 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Music2, CalendarHeart, ArrowRight, Sparkles, Play, Star, Users } from 'lucide-react';
-import { ARTISTS } from '@/data';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { listArtists, type DbArtist } from '@/lib/artists';
 import OnboardingModal, { isOnboardingComplete } from '@/components/OnboardingModal';
 
 export default function Entry() {
-  const featured = ARTISTS.slice(0, 4);
+  const [featured, setFeatured] = useState<DbArtist[]>([]);
   const navigate = useNavigate();
   const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    listArtists()
+      .then((all) => setFeatured(all.slice(0, 4)))
+      .catch(() => setFeatured([]));
+  }, []);
 
   const handleArtistClick = () => {
     if (isOnboardingComplete()) {
@@ -91,7 +97,7 @@ export default function Entry() {
                 className={`group relative overflow-hidden rounded-card ${i % 2 === 1 ? 'mt-12' : ''}`}
               >
                 <img
-                  src={artist.photo}
+                  src={artist.photo_url ?? undefined}
                   alt={artist.name}
                   className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
                 />

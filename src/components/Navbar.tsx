@@ -1,11 +1,12 @@
-import { Link, useLocation } from 'react-router-dom';
-import { Music2, Compass, MessageCircle, Shield, LayoutDashboard, Menu, X, Gift } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Music2, Compass, MessageCircle, ClipboardList, LayoutDashboard, Menu, X, Gift, LogOut } from 'lucide-react';
 import { useState } from 'react';
+import { useAuth } from '@/lib/AuthContext';
 
 const NAV_ITEMS = [
   { to: '/explore', label: 'Explore', icon: Compass },
   { to: '/chat', label: 'Chat', icon: MessageCircle },
-  { to: '/escrow', label: 'Escrow', icon: Shield },
+  { to: '/solicitudes', label: 'Solicitudes', icon: ClipboardList },
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/referidos', label: 'Referidos', icon: Gift },
 ];
@@ -13,6 +14,21 @@ const NAV_ITEMS = [
 export default function Navbar() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const { user, profile, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const initials = (profile?.full_name || user?.email || '?')
+    .trim()
+    .split(/\s+/)
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
 
   if (location.pathname === '/') return null;
 
@@ -49,26 +65,44 @@ export default function Navbar() {
 
         {/* Desktop right actions */}
         <div className="hidden items-center gap-3 md:flex">
-          <Link
-            to="/pro"
-            className="rounded-pill bg-lime px-4 py-2 text-sm font-bold text-bg-base transition hover:bg-lime-dark"
-          >
-            Go Pro
-          </Link>
-          <Link
-            to="/client"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-bg-raised text-sm font-bold text-ink-primary ring-1 ring-line transition hover:ring-lime"
-          >
-            JD
-          </Link>
+          {user ? (
+            <>
+              <Link
+                to="/artista/nuevo"
+                className="rounded-pill bg-lime px-4 py-2 text-sm font-bold text-bg-base transition hover:bg-lime-dark"
+              >
+                Ofrecer mis servicios
+              </Link>
+              <Link
+                to="/client"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-bg-raised text-sm font-bold text-ink-primary ring-1 ring-line transition hover:ring-lime"
+              >
+                {initials}
+              </Link>
+              <button
+                onClick={handleSignOut}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-bg-raised text-ink-muted ring-1 ring-line transition hover:text-ink-primary hover:ring-lime"
+                title="Cerrar sesión"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/login"
+              className="rounded-pill bg-lime px-4 py-2 text-sm font-bold text-bg-base transition hover:bg-lime-dark"
+            >
+              Iniciar sesión
+            </Link>
+          )}
         </div>
 
-        {/* Mobile: only avatar, no links (bottom nav handles navigation) */}
+        {/* Mobile: only avatar/login, no links (bottom nav handles navigation) */}
         <Link
-          to="/client"
+          to={user ? '/client' : '/login'}
           className="flex h-9 w-9 items-center justify-center rounded-full bg-bg-raised text-sm font-bold text-ink-primary ring-1 ring-line transition hover:ring-lime md:hidden"
         >
-          JD
+          {user ? initials : '?'}
         </Link>
       </div>
     </header>

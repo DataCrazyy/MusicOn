@@ -21,6 +21,11 @@ import Comparar from '@/pages/Comparar';
 import Contrato from '@/pages/Contrato';
 import Documentos from '@/pages/Documentos';
 import Apoyar from '@/pages/Apoyar';
+import Login from '@/pages/Login';
+import RequireAuth from '@/components/RequireAuth';
+import BecomeArtist from '@/pages/BecomeArtist';
+import RequestBooking from '@/pages/RequestBooking';
+import MySolicitudes from '@/pages/MySolicitudes';
 
 function App() {
   return (
@@ -37,18 +42,22 @@ function App() {
             <Route path="/chat" element={<Chat />} />
             <Route path="/chat/:id" element={<Chat />} />
             <Route path="/escrow" element={<Escrow />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/dashboard/progreso" element={<Progreso />} />
-            <Route path="/booking" element={<BookingForm />} />
-            <Route path="/payment" element={<Payment />} />
-            <Route path="/confirmation" element={<Confirmation />} />
-            <Route path="/client" element={<ClientProfile />} />
-            <Route path="/pro" element={<ProPlan />} />
-            <Route path="/referidos" element={<Referidos />} />
+            <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+            <Route path="/dashboard/progreso" element={<RequireAuth><Progreso /></RequireAuth>} />
+            <Route path="/booking" element={<RequireAuth><BookingForm /></RequireAuth>} />
+            <Route path="/payment" element={<RequireAuth><Payment /></RequireAuth>} />
+            <Route path="/confirmation" element={<RequireAuth><Confirmation /></RequireAuth>} />
+            <Route path="/client" element={<RequireAuth><ClientProfile /></RequireAuth>} />
+            <Route path="/pro" element={<RequireAuth><ProPlan /></RequireAuth>} />
+            <Route path="/referidos" element={<RequireAuth><Referidos /></RequireAuth>} />
             <Route path="/comparar" element={<Comparar />} />
-            <Route path="/contrato/:bookingId" element={<Contrato />} />
-            <Route path="/documentos" element={<Documentos />} />
+            <Route path="/contrato/:bookingId" element={<RequireAuth><Contrato /></RequireAuth>} />
+            <Route path="/documentos" element={<RequireAuth><Documentos /></RequireAuth>} />
             <Route path="/artista/:id/apoyar" element={<Apoyar />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/artista/nuevo" element={<RequireAuth><BecomeArtist /></RequireAuth>} />
+            <Route path="/reservar/:artistId" element={<RequireAuth><RequestBooking /></RequireAuth>} />
+            <Route path="/solicitudes" element={<RequireAuth><MySolicitudes /></RequireAuth>} />
           </Routes>
         </div>
         <BottomNav />
