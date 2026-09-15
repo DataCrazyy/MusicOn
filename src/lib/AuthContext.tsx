@@ -19,6 +19,7 @@ type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -77,9 +78,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }
 
+  async function refreshProfile() {
+    if (session?.user) await loadProfile(session.user.id);
+  }
+
   return (
     <AuthContext.Provider
-      value={{ user: session?.user ?? null, session, profile, loading, signUp, signIn, signOut, signInWithGoogle }}
+      value={{
+        user: session?.user ?? null,
+        session,
+        profile,
+        loading,
+        signUp,
+        signIn,
+        signOut,
+        signInWithGoogle,
+        refreshProfile,
+      }}
     >
       {children}
     </AuthContext.Provider>

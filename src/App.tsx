@@ -9,6 +9,7 @@ import RequireAuth from '@/components/RequireAuth';
 import BecomeArtist from '@/pages/BecomeArtist';
 import RequestBooking from '@/pages/RequestBooking';
 import MySolicitudes from '@/pages/MySolicitudes';
+import Account from '@/pages/Account';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
           <Route path="/artista/nuevo" element={<RequireAuth><BecomeArtist /></RequireAuth>} />
           <Route path="/reservar/:artistId" element={<RequireAuth><RequestBooking /></RequireAuth>} />
           <Route path="/solicitudes" element={<RequireAuth><MySolicitudes /></RequireAuth>} />
+          <Route path="/cuenta" element={<RequireAuth><Account /></RequireAuth>} />
         </Routes>
       </div>
       <BottomNav />

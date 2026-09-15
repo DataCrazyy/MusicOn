@@ -1,5 +1,5 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Music2, Compass, ClipboardList, LogOut } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Music2, Compass, ClipboardList } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 
 const NAV_ITEMS = [
@@ -9,8 +9,7 @@ const NAV_ITEMS = [
 
 export default function Navbar() {
   const location = useLocation();
-  const { user, profile, signOut } = useAuth();
-  const navigate = useNavigate();
+  const { user, profile } = useAuth();
 
   const initials = (profile?.full_name || user?.email || '?')
     .trim()
@@ -19,11 +18,6 @@ export default function Navbar() {
     .slice(0, 2)
     .join('')
     .toUpperCase();
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
-  };
 
   if (location.pathname === '/') return null;
 
@@ -58,31 +52,20 @@ export default function Navbar() {
           })}
         </nav>
 
-        {/* Acciones de escritorio */}
-        <div className="hidden items-center gap-3 md:flex">
+        {/* Cuenta — escritorio */}
+        <div className="hidden md:flex">
           {user ? (
-            <>
-              <Link
-                to="/artista/nuevo"
-                className="rounded-pill bg-lime px-4 py-2 text-sm font-bold text-bg-base transition hover:bg-lime-dark"
-              >
-                Ofrecer mis servicios
-              </Link>
-              <Link
-                to="/solicitudes"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-bg-raised text-sm font-bold text-ink-primary ring-1 ring-line transition hover:ring-lime"
-                title="Mis solicitudes"
-              >
-                {initials}
-              </Link>
-              <button
-                onClick={handleSignOut}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-bg-raised text-ink-muted ring-1 ring-line transition hover:text-ink-primary hover:ring-lime"
-                title="Cerrar sesión"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </>
+            <Link
+              to="/cuenta"
+              className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-bg-raised text-sm font-bold text-ink-primary ring-1 ring-line transition hover:ring-lime"
+              title="Mi cuenta"
+            >
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="Mi cuenta" className="h-full w-full object-cover" />
+              ) : (
+                initials
+              )}
+            </Link>
           ) : (
             <Link
               to="/login"
@@ -93,12 +76,20 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Mobile: solo avatar/login (la nav inferior maneja la navegación) */}
+        {/* Cuenta — mobile (la nav inferior maneja la navegación principal) */}
         <Link
-          to={user ? '/solicitudes' : '/login'}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-bg-raised text-sm font-bold text-ink-primary ring-1 ring-line transition hover:ring-lime md:hidden"
+          to={user ? '/cuenta' : '/login'}
+          className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-bg-raised text-sm font-bold text-ink-primary ring-1 ring-line transition hover:ring-lime md:hidden"
         >
-          {user ? initials : '?'}
+          {user ? (
+            profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt="Mi cuenta" className="h-full w-full object-cover" />
+            ) : (
+              initials
+            )
+          ) : (
+            '?'
+          )}
         </Link>
       </div>
     </header>

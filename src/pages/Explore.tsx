@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Loader2, Mic2, ArrowRight } from 'lucide-react';
 import ArtistCardLite from '@/components/ArtistCardLite';
 import { listArtists, type DbArtist } from '@/lib/artists';
 
 type SortBy = 'price_asc' | 'price_desc' | 'recent';
 
 export default function Explore() {
+  const navigate = useNavigate();
   const [artists, setArtists] = useState<DbArtist[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +48,23 @@ export default function Explore() {
     <div className="min-h-screen bg-bg-base py-8 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <h1 className="mb-6 font-display text-3xl font-bold text-ink-primary">Explorar artistas</h1>
+
+        {/* Banner: publicar perfil de artista */}
+        <button
+          onClick={() => navigate('/artista/nuevo')}
+          className="group mb-6 flex w-full items-center justify-between gap-4 rounded-card border border-line bg-bg-surface px-5 py-4 text-left transition hover:border-lime/40"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-violet/15 text-violet">
+              <Mic2 className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-semibold text-ink-primary">¿Sos artista o tenés una banda?</p>
+              <p className="text-sm text-ink-muted">Publicá tu perfil gratis y empezá a recibir solicitudes.</p>
+            </div>
+          </div>
+          <ArrowRight className="h-5 w-5 flex-shrink-0 text-ink-muted transition group-hover:translate-x-1 group-hover:text-lime" />
+        </button>
 
         {/* Filters */}
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center">
