@@ -8,6 +8,7 @@ type Profile = {
   role: 'client' | 'artist' | 'admin';
   avatar_url: string | null;
   phone: string | null;
+  onboarded: boolean;
 };
 
 type AuthContextValue = {

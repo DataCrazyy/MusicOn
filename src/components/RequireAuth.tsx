@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function RequireAuth({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -16,6 +16,10 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (profile && !profile.onboarded && location.pathname !== '/bienvenida') {
+    return <Navigate to="/bienvenida" replace />;
   }
 
   return <>{children}</>;

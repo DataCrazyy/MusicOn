@@ -177,6 +177,8 @@ export default function MySolicitudes() {
                           <Users className="h-3.5 w-3.5" /> {b.guest_range}
                         </p>
                       )}
+                      <p className="mt-1 text-sm font-semibold text-ink-primary">Precio de referencia: ${b.total}</p>
+                      {b.notes && <p className="mt-1 text-sm text-ink-muted">Tu mensaje: "{b.notes}"</p>}
                       {b.artist_response && (b.status === 'confirmed' || b.status === 'cancelled') && (
                         <div
                           className={`mt-2 rounded-lg p-2 text-sm ${
@@ -265,6 +267,7 @@ export default function MySolicitudes() {
                             <Users className="h-3.5 w-3.5" /> {b.guest_range}
                           </p>
                         )}
+                        <p className="mt-1 text-sm font-semibold text-ink-primary">Precio de referencia: ${b.total}</p>
                         {b.notes && <p className="mt-1 text-sm text-ink-muted">"{b.notes}"</p>}
                       </div>
 

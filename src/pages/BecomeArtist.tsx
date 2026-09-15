@@ -2,6 +2,7 @@ import { useEffect, useState, type ChangeEvent, type DragEvent, type FormEvent }
 import { useNavigate, Link } from 'react-router-dom';
 import { Loader2, Sparkles, Pencil, ImagePlus, X, Plus, Music, Youtube } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
+import { setProfileRole } from '@/lib/profile';
 import {
   createArtist,
   updateArtist,
@@ -209,6 +210,9 @@ export default function BecomeArtist() {
       };
 
       const artist = existing ? await updateArtist(existing.id, input) : await createArtist(user.id, input);
+      if (!existing) {
+        setProfileRole(user.id, 'artist').catch(() => {});
+      }
       navigate(`/profile/${artist.id}`);
     } catch (err) {
       // eslint-disable-next-line no-console
