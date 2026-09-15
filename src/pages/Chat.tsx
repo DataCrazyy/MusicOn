@@ -108,18 +108,18 @@ export default function Chat() {
   return (
     <div className="mx-auto flex h-[calc(100vh-8rem)] max-w-6xl md:h-[calc(100vh-4rem)]">
       {/* Lista de conversaciones */}
-      <div className={`w-full flex-shrink-0 overflow-y-auto border-r border-line bg-bg-base md:w-80 ${active ? 'hidden md:block' : 'block'}`}>
-        <h1 className="px-4 pb-2 pt-6 font-display text-2xl font-bold text-ink-primary">Chat</h1>
+      <div className={`w-full flex-shrink-0 overflow-y-auto border-r border-line bg-bg-base md:w-96 ${active ? 'hidden md:block' : 'block'}`}>
+        <h1 className="px-6 pb-4 pt-7 font-display text-2xl font-bold text-ink-primary">Chat</h1>
         <div>
           {conversations.map((c) => (
             <button
               key={c.bookingId}
               onClick={() => setOpenId(c.bookingId)}
-              className={`flex w-full items-center gap-3 border-b border-line px-4 py-3 text-left transition hover:bg-bg-surface ${
+              className={`flex w-full items-center gap-3.5 border-b border-line px-6 py-4 text-left transition hover:bg-bg-surface ${
                 openId === c.bookingId ? 'bg-bg-surface' : ''
               }`}
             >
-              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-bg-raised">
+              <div className="flex h-[52px] w-[52px] flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-bg-raised">
                 {c.photoUrl ? (
                   <img src={c.photoUrl} alt={c.name} className="h-full w-full object-cover" />
                 ) : (
@@ -140,11 +140,11 @@ export default function Chat() {
       <div className={`flex min-w-0 flex-1 flex-col ${active ? 'flex' : 'hidden md:flex'}`}>
         {active ? (
           <>
-            <div className="flex items-center gap-3 border-b border-line bg-bg-base px-4 py-4">
+            <div className="flex items-center gap-3.5 border-b border-line bg-bg-base px-6 py-5">
               <button onClick={() => setOpenId(null)} className="text-ink-muted md:hidden">
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-bg-raised">
+              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-bg-raised">
                 {active.photoUrl ? (
                   <img src={active.photoUrl} alt={active.name} className="h-full w-full object-cover" />
                 ) : (
@@ -157,7 +157,7 @@ export default function Chat() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-hidden px-4">
+            <div className="flex-1 overflow-hidden px-6 py-2">
               <BookingMessages
                 key={active.bookingId}
                 bookingId={active.bookingId}

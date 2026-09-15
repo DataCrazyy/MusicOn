@@ -76,8 +76,8 @@ export default function BookingMessages({ bookingId, recipientId, onRead, sugges
   }
 
   return (
-    <div className={bare ? 'flex h-full flex-col' : 'rounded-lg border border-line bg-bg-raised p-3'}>
-      <div className={bare ? 'flex-1 space-y-2 overflow-y-auto px-1 py-2' : 'mb-2 max-h-56 space-y-2 overflow-y-auto pr-1'}>
+    <div className={bare ? 'flex h-full flex-col' : 'rounded-lg border border-line bg-bg-raised p-4'}>
+      <div className={bare ? 'flex-1 space-y-3 overflow-y-auto px-1 py-3' : 'mb-3 max-h-56 space-y-3 overflow-y-auto pr-1'}>
         {loading ? (
           <div className="flex items-center gap-2 py-2 text-xs text-ink-muted">
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> Cargando mensajes...
@@ -92,8 +92,10 @@ export default function BookingMessages({ bookingId, recipientId, onRead, sugges
             return (
               <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                 <div
-                  className={`max-w-[80%] rounded-lg px-3 py-1.5 text-sm ${
-                    mine ? 'bg-lime text-bg-base' : 'bg-bg-surface text-ink-primary'
+                  className={`max-w-[75%] px-4 py-2.5 text-sm leading-relaxed shadow-sm sm:text-[15px] ${
+                    mine
+                      ? 'rounded-2xl rounded-br-md bg-lime text-bg-base'
+                      : 'rounded-2xl rounded-bl-md bg-bg-surface text-ink-primary'
                   }`}
                 >
                   {m.body}
@@ -106,13 +108,13 @@ export default function BookingMessages({ bookingId, recipientId, onRead, sugges
       </div>
 
       {suggestions && suggestions.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-2">
+        <div className="mb-3 flex flex-wrap gap-2">
           {suggestions.map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => setBody(s)}
-              className="rounded-pill border border-line bg-bg-base px-3 py-1.5 text-xs font-medium text-ink-muted transition hover:border-lime/40 hover:text-ink-primary"
+              className="rounded-full border border-line bg-bg-base px-3.5 py-2 text-xs font-medium text-ink-muted transition hover:border-lime/50 hover:text-ink-primary"
             >
               {s}
             </button>
@@ -120,17 +122,17 @@ export default function BookingMessages({ bookingId, recipientId, onRead, sugges
         </div>
       )}
 
-      <form onSubmit={handleSend} className="flex gap-2">
+      <form onSubmit={handleSend} className="flex items-center gap-2">
         <input
           value={body}
           onChange={(e) => setBody(e.target.value)}
           placeholder="Escribí una consulta..."
-          className="flex-1 rounded-lg border border-line bg-bg-surface px-3 py-2 text-sm text-ink-primary outline-none focus:border-lime"
+          className="flex-1 rounded-full border border-line bg-bg-surface px-5 py-3 text-sm text-ink-primary outline-none focus:border-lime"
         />
         <button
           type="submit"
           disabled={sending || !body.trim()}
-          className="flex items-center justify-center rounded-lg bg-lime px-3 py-2 text-bg-base hover:bg-lime-dark disabled:opacity-50"
+          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-lime text-bg-base transition hover:bg-lime-dark disabled:opacity-50"
         >
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </button>
