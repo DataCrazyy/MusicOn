@@ -58,7 +58,7 @@ export default function BookingMessages({ bookingId, recipientId, onRead, sugges
   }, [bookingId]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: 'nearest' });
+    bottomRef.current?.scrollIntoView({ block: 'end' });
   }, [messages]);
 
   async function handleSend(e: FormEvent) {
@@ -77,34 +77,35 @@ export default function BookingMessages({ bookingId, recipientId, onRead, sugges
 
   return (
     <div className={bare ? 'flex h-full flex-col' : 'rounded-lg border border-line bg-bg-raised p-4'}>
-      <div className={bare ? 'flex-1 space-y-3 overflow-y-auto px-1 py-3' : 'mb-3 max-h-56 space-y-3 overflow-y-auto pr-1'}>
-        {loading ? (
-          <div className="flex items-center gap-2 py-2 text-xs text-ink-muted">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Cargando mensajes...
-          </div>
-        ) : messages.length === 0 ? (
-          <p className="py-1 text-xs text-ink-muted">
-            Todavía no hay mensajes. Escribí tu consulta abajo.
-          </p>
-        ) : (
-          messages.map((m) => {
-            const mine = m.sender_id === user?.id;
-            return (
-              <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+      <div className={bare ? 'flex-1 overflow-y-auto px-1 py-3' : 'mb-3 max-h-56 overflow-y-auto pr-1'}>
+        <div className="flex min-h-full flex-col justify-start gap-2.5">
+          {loading ? (
+            <div className="flex items-center gap-2 py-2 text-xs text-ink-muted">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Cargando mensajes...
+            </div>
+          ) : messages.length === 0 ? (
+            <p className="py-1 text-xs text-ink-muted">
+              Todavía no hay mensajes. Escribí tu consulta abajo.
+            </p>
+          ) : (
+            messages.map((m) => {
+              const mine = m.sender_id === user?.id;
+              return (
                 <div
+                  key={m.id}
                   className={`max-w-[75%] px-4 py-2.5 text-sm leading-relaxed shadow-sm sm:text-[15px] ${
                     mine
-                      ? 'rounded-2xl rounded-br-md bg-lime text-bg-base'
-                      : 'rounded-2xl rounded-bl-md bg-bg-surface text-ink-primary'
+                      ? 'self-end rounded-2xl rounded-br-md bg-lime text-bg-base'
+                      : 'self-start rounded-2xl rounded-bl-md bg-bg-raised text-ink-primary'
                   }`}
                 >
                   {m.body}
                 </div>
-              </div>
-            );
-          })
-        )}
-        <div ref={bottomRef} />
+              );
+            })
+          )}
+          <div ref={bottomRef} />
+        </div>
       </div>
 
       {suggestions && suggestions.length > 0 && (
