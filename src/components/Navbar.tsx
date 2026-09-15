@@ -1,19 +1,14 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Music2, Compass, MessageCircle, ClipboardList, LayoutDashboard, Menu, X, Gift, LogOut } from 'lucide-react';
-import { useState } from 'react';
+import { Music2, Compass, ClipboardList, LogOut } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 
 const NAV_ITEMS = [
-  { to: '/explore', label: 'Explore', icon: Compass },
-  { to: '/chat', label: 'Chat', icon: MessageCircle },
+  { to: '/explore', label: 'Explorar', icon: Compass },
   { to: '/solicitudes', label: 'Solicitudes', icon: ClipboardList },
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/referidos', label: 'Referidos', icon: Gift },
 ];
 
 export default function Navbar() {
   const location = useLocation();
-  const [open, setOpen] = useState(false);
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -44,7 +39,7 @@ export default function Navbar() {
           </span>
         </Link>
 
-        {/* Desktop nav links */}
+        {/* Links de escritorio */}
         <nav className="hidden items-center gap-1 md:flex">
           {NAV_ITEMS.map(({ to, label, icon: Icon }) => {
             const active = location.pathname.startsWith(to);
@@ -63,7 +58,7 @@ export default function Navbar() {
           })}
         </nav>
 
-        {/* Desktop right actions */}
+        {/* Acciones de escritorio */}
         <div className="hidden items-center gap-3 md:flex">
           {user ? (
             <>
@@ -74,8 +69,9 @@ export default function Navbar() {
                 Ofrecer mis servicios
               </Link>
               <Link
-                to="/client"
+                to="/solicitudes"
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-bg-raised text-sm font-bold text-ink-primary ring-1 ring-line transition hover:ring-lime"
+                title="Mis solicitudes"
               >
                 {initials}
               </Link>
@@ -97,9 +93,9 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Mobile: only avatar/login, no links (bottom nav handles navigation) */}
+        {/* Mobile: solo avatar/login (la nav inferior maneja la navegación) */}
         <Link
-          to={user ? '/client' : '/login'}
+          to={user ? '/solicitudes' : '/login'}
           className="flex h-9 w-9 items-center justify-center rounded-full bg-bg-raised text-sm font-bold text-ink-primary ring-1 ring-line transition hover:ring-lime md:hidden"
         >
           {user ? initials : '?'}

@@ -1,13 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Music2, CalendarHeart, ArrowRight, Sparkles, Play, Star, Users } from 'lucide-react';
+import { Music2, ArrowRight, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { listArtists, type DbArtist } from '@/lib/artists';
-import OnboardingModal, { isOnboardingComplete } from '@/components/OnboardingModal';
 
 export default function Entry() {
   const [featured, setFeatured] = useState<DbArtist[]>([]);
   const navigate = useNavigate();
-  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     listArtists()
@@ -15,20 +13,12 @@ export default function Entry() {
       .catch(() => setFeatured([]));
   }, []);
 
-  const handleArtistClick = () => {
-    if (isOnboardingComplete()) {
-      navigate('/dashboard');
-    } else {
-      setShowOnboarding(true);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-bg-base">
-      {/* Split hero */}
+      {/* Hero */}
       <section className="grid min-h-screen lg:grid-cols-2">
-        {/* Left — Client */}
-        <div className="animate-fade-in-up relative flex flex-col justify-between p-8 sm:p-12 lg:p-16" style={{ animationDelay: '0s' }}>
+        {/* Izquierda — Cliente */}
+        <div className="animate-fade-in-up relative flex flex-col justify-between p-8 sm:p-12 lg:p-16">
           <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-lime">
               <Music2 className="h-6 w-6 text-bg-base" />
@@ -40,125 +30,96 @@ export default function Entry() {
 
           <div className="py-8">
             <div className="mb-4 inline-flex items-center gap-2 rounded-pill bg-bg-raised px-3 py-1.5 text-sm text-ink-muted">
-              <Sparkles className="h-4 w-4 text-lime" /> Find your perfect live music
+              <Sparkles className="h-4 w-4 text-lime" /> Encontrá al artista ideal para tu evento
             </div>
             <h1 className="font-display text-5xl font-extrabold leading-[1.05] text-ink-primary sm:text-6xl lg:text-7xl">
-              Book live music
+              Reservá música en vivo
               <br />
-              <span className="text-lime">in minutes.</span>
+              <span className="text-lime">en minutos.</span>
             </h1>
             <p className="mt-6 max-w-md text-lg leading-relaxed text-ink-muted">
-              Browse verified artists, compare quotes, and pay securely with
-              escrow protection. From weddings to warehouse parties — the right
-              sound is one click away.
+              Explorá artistas de Bolivia, mandá tu solicitud y coordiná todo directamente con ellos.
+              De bodas a fiestas privadas — el sonido correcto está a un click.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 to="/explore"
                 className="group flex items-center gap-2 rounded-pill bg-lime px-6 py-3.5 font-bold text-bg-base transition hover:bg-lime-dark"
               >
-                Find Artists
+                Explorar artistas
                 <ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" />
               </Link>
-              <Link
-                to="/wizard"
+              <button
+                onClick={() => navigate('/artista/nuevo')}
                 className="flex items-center gap-2 rounded-pill border border-line bg-bg-surface px-6 py-3.5 font-bold text-ink-primary transition hover:border-lime/40"
               >
-                <CalendarHeart className="h-5 w-5 text-lime" />
-                Guided Booking
-              </Link>
-            </div>
-            <div className="mt-10 flex gap-8">
-              <div>
-                <div className="font-display text-3xl font-bold text-ink-primary">12K+</div>
-                <div className="text-sm text-ink-muted">Artists</div>
-              </div>
-              <div>
-                <div className="font-display text-3xl font-bold text-ink-primary">48K+</div>
-                <div className="text-sm text-ink-muted">Gigs booked</div>
-              </div>
-              <div>
-                <div className="font-display text-3xl font-bold text-ink-primary">$2.1M</div>
-                <div className="text-sm text-ink-muted">In escrow</div>
-              </div>
+                Ofrecer mis servicios
+              </button>
             </div>
           </div>
 
-          <p className="text-sm text-ink-muted">© 2026 MusicOn. All rights reserved.</p>
+          <p className="text-sm text-ink-muted">© 2026 MusicOn</p>
         </div>
 
-        {/* Right — Artist showcase */}
-        <div className="animate-fade-in-up relative hidden overflow-hidden bg-bg-surface lg:block" style={{ animationDelay: '0.1s' }}>
+        {/* Derecha — Vidriera de artistas */}
+        <div className="animate-fade-in-up relative hidden overflow-hidden bg-bg-surface lg:block">
           <div className="absolute inset-0 bg-gradient-to-br from-violet/10 via-transparent to-lime/10" />
-          <div className="relative grid h-full grid-cols-2 gap-4 p-8">
-            {featured.map((artist, i) => (
-              <div
-                key={artist.id}
-                className={`group relative overflow-hidden rounded-card ${i % 2 === 1 ? 'mt-12' : ''}`}
-              >
-                <img
-                  src={artist.photo_url ?? undefined}
-                  alt={artist.name}
-                  className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-bg-base via-bg-base/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-4">
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-pill bg-lime px-2 py-0.5 text-xs font-bold text-bg-base">
-                      {artist.genre}
-                    </span>
+          {featured.length > 0 ? (
+            <div className="relative grid h-full grid-cols-2 gap-4 p-8">
+              {featured.map((artist, i) => (
+                <Link
+                  key={artist.id}
+                  to={`/profile/${artist.id}`}
+                  className={`group relative overflow-hidden rounded-card ${i % 2 === 1 ? 'mt-12' : ''}`}
+                >
+                  <img
+                    src={artist.photo_url ?? undefined}
+                    alt={artist.name}
+                    className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-bg-base via-bg-base/20 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-4">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-pill bg-lime px-2 py-0.5 text-xs font-bold text-bg-base">
+                        {artist.genre}
+                      </span>
+                    </div>
+                    <h3 className="mt-2 font-display text-lg font-bold text-ink-primary">
+                      {artist.name}
+                    </h3>
+                    <p className="text-sm text-ink-muted">{artist.city}</p>
                   </div>
-                  <h3 className="mt-2 font-display text-lg font-bold text-ink-primary">
-                    {artist.name}
-                  </h3>
-                  <p className="text-sm text-ink-muted">{artist.city}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Floating player */}
-          <div className="absolute bottom-8 left-8 right-8 flex items-center gap-3 rounded-card border border-line bg-bg-elevated/80 p-4 backdrop-blur-xl">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-lime">
-              <Play className="h-5 w-5 fill-bg-base text-bg-base" />
+                </Link>
+              ))}
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-ink-primary">Neon Dawn</p>
-              <p className="text-xs text-ink-muted">The Midnight Set · 142K plays</p>
+          ) : (
+            <div className="flex h-full items-center justify-center p-8 text-center text-sm text-ink-muted">
+              Todavía no hay artistas publicados — ¡sé el primero!
             </div>
-            <div className="flex gap-4 text-xs text-ink-muted">
-              <span className="flex items-center gap-1"><Star className="h-3.5 w-3.5 text-amber" fill="currentColor" /> 4.9</span>
-              <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> 4 pc</span>
-            </div>
-          </div>
+          )}
         </div>
       </section>
 
-      {/* Artist CTA banner */}
+      {/* CTA para artistas */}
       <section className="border-t border-line bg-bg-surface px-6 py-12">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-6 text-center md:flex-row md:text-left">
           <div>
             <h2 className="font-display text-3xl font-bold text-ink-primary">
-              Are you an artist?
+              ¿Sos artista o tenés una banda?
             </h2>
             <p className="mt-2 text-lg text-ink-muted">
-              List your act, manage bookings, and get paid with built-in escrow.
-              Join 12,000+ musicians already on MusicOn.
+              Publicá tu perfil, recibí solicitudes de reserva y manejá tu disponibilidad, todo gratis.
             </p>
           </div>
           <button
-            onClick={handleArtistClick}
+            onClick={() => navigate('/artista/nuevo')}
             className="flex flex-shrink-0 items-center gap-2 rounded-pill bg-violet px-6 py-3.5 font-bold text-white transition hover:bg-violet-dark"
           >
-            List Your Act
+            Publicar mi perfil
             <ArrowRight className="h-5 w-5" />
           </button>
         </div>
       </section>
-
-      {showOnboarding && (
-        <OnboardingModal onComplete={() => setShowOnboarding(false)} />
-      )}
     </div>
   );
 }

@@ -1,12 +1,11 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Compass, MessageCircle, User, Sparkles } from 'lucide-react';
+import { Home, Compass, ClipboardList, Mic2 } from 'lucide-react';
 
 const TABS = [
   { to: '/', label: 'Inicio', icon: Home },
   { to: '/explore', label: 'Explorar', icon: Compass },
-  { to: '/chat', label: 'Chat', icon: MessageCircle },
-  { to: '/client', label: 'Perfil', icon: User },
-  { to: '/pro', label: 'Pro', icon: Sparkles },
+  { to: '/solicitudes', label: 'Solicitudes', icon: ClipboardList },
+  { to: '/artista/nuevo', label: 'Ser artista', icon: Mic2 },
 ];
 
 export default function BottomNav() {
