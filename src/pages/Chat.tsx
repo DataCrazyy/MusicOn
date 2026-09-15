@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Loader2, MessageCircle } from 'lucide-react';
+import { Loader2, MessageCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
-import { getArtistByOwner, type DbArtist } from '@/lib/artists';
+import { getArtistByOwner } from '@/lib/artists';
 import { listBookingsAsClient, listBookingsForArtist, type BookingWithArtist, type BookingWithClient } from '@/lib/bookings';
 import { listUnreadBookingIds } from '@/lib/messages';
 import BookingMessages from '@/components/BookingMessages';
@@ -15,6 +15,14 @@ type Conversation = {
 };
 
 const APPROVED = new Set(['confirmed', 'in_escrow', 'completed']);
+
+const QUICK_REPLIES = [
+  '¿Tenés disponibilidad?',
+  '¿Cuál es el precio?',
+  '¿Incluís equipo de sonido?',
+  '¿Podés hacer un set personalizado?',
+  '¿Viajás a otra ciudad?',
+];
 
 export default function Chat() {
   const { user } = useAuth();
@@ -54,8 +62,10 @@ export default function Chat() {
         recipientId: b.client_id,
       }));
 
-    setConversations([...clientSide, ...artistSide]);
+    const all = [...clientSide, ...artistSide];
+    setConversations(all);
     setUnreadIds(unread);
+    setOpenId((prev) => prev ?? (all[0]?.bookingId ?? null));
     setLoading(false);
   }
 
@@ -81,50 +91,86 @@ export default function Chat() {
     );
   }
 
+  const active = conversations.find((c) => c.bookingId === openId) ?? null;
+
+  if (conversations.length === 0) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-2 px-4 text-center">
+        <MessageCircle className="h-8 w-8 text-ink-muted" />
+        <p className="font-semibold text-ink-primary">Todavía no tenés conversaciones</p>
+        <p className="max-w-sm text-sm text-ink-muted">
+          Se habilitan acá apenas una reserva queda confirmada. Mientras tanto podés consultar a los artistas desde tus Solicitudes.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-bg-base py-8 px-4 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-2xl">
-        <h1 className="mb-6 font-display text-3xl font-bold text-ink-primary">Chat</h1>
-
-        {conversations.length === 0 ? (
-          <p className="text-sm text-ink-muted">
-            Todavía no tenés conversaciones activas. Se habilitan acá apenas una reserva queda confirmada.
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {conversations.map((c) => (
-              <div key={c.bookingId} className="overflow-hidden rounded-card border border-line bg-bg-surface">
-                <button
-                  onClick={() => setOpenId((prev) => (prev === c.bookingId ? null : c.bookingId))}
-                  className="flex w-full items-center gap-3 p-4 text-left"
-                >
-                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-bg-raised">
-                    {c.photoUrl ? (
-                      <img src={c.photoUrl} alt={c.name} className="h-full w-full object-cover" />
-                    ) : (
-                      <MessageCircle className="h-5 w-5 text-ink-muted" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-ink-primary">{c.name}</p>
-                    <p className="text-sm text-ink-muted">{c.subtitle}</p>
-                  </div>
-                  {unreadIds.has(c.bookingId) && openId !== c.bookingId && (
-                    <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-lime" />
-                  )}
-                </button>
-
-                {openId === c.bookingId && (
-                  <div className="border-t border-line p-4">
-                    <BookingMessages
-                      bookingId={c.bookingId}
-                      recipientId={c.recipientId}
-                      onRead={() => clearUnread(c.bookingId)}
-                    />
-                  </div>
+    <div className="mx-auto flex h-[calc(100vh-8rem)] max-w-6xl md:h-[calc(100vh-4rem)]">
+      {/* Lista de conversaciones */}
+      <div className={`w-full flex-shrink-0 overflow-y-auto border-r border-line bg-bg-base md:w-80 ${active ? 'hidden md:block' : 'block'}`}>
+        <h1 className="px-4 pb-2 pt-6 font-display text-2xl font-bold text-ink-primary">Chat</h1>
+        <div>
+          {conversations.map((c) => (
+            <button
+              key={c.bookingId}
+              onClick={() => setOpenId(c.bookingId)}
+              className={`flex w-full items-center gap-3 border-b border-line px-4 py-3 text-left transition hover:bg-bg-surface ${
+                openId === c.bookingId ? 'bg-bg-surface' : ''
+              }`}
+            >
+              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-bg-raised">
+                {c.photoUrl ? (
+                  <img src={c.photoUrl} alt={c.name} className="h-full w-full object-cover" />
+                ) : (
+                  <MessageCircle className="h-5 w-5 text-ink-muted" />
                 )}
               </div>
-            ))}
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-bold text-ink-primary">{c.name}</p>
+                <p className="truncate text-sm text-ink-muted">{c.subtitle}</p>
+              </div>
+              {unreadIds.has(c.bookingId) && <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-lime" />}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Hilo activo */}
+      <div className={`flex min-w-0 flex-1 flex-col ${active ? 'flex' : 'hidden md:flex'}`}>
+        {active ? (
+          <>
+            <div className="flex items-center gap-3 border-b border-line bg-bg-base px-4 py-4">
+              <button onClick={() => setOpenId(null)} className="text-ink-muted md:hidden">
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-bg-raised">
+                {active.photoUrl ? (
+                  <img src={active.photoUrl} alt={active.name} className="h-full w-full object-cover" />
+                ) : (
+                  <MessageCircle className="h-4 w-4 text-ink-muted" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate font-bold text-ink-primary">{active.name}</p>
+                <p className="truncate text-xs text-ink-muted">{active.subtitle}</p>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-hidden px-4">
+              <BookingMessages
+                key={active.bookingId}
+                bookingId={active.bookingId}
+                recipientId={active.recipientId}
+                onRead={() => clearUnread(active.bookingId)}
+                suggestions={QUICK_REPLIES}
+                bare
+              />
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-1 items-center justify-center text-sm text-ink-muted">
+            Elegí una conversación
           </div>
         )}
       </div>

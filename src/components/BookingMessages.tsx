@@ -13,9 +13,13 @@ type Props = {
   bookingId: string;
   recipientId: string;
   onRead?: () => void;
+  /** Preguntas rápidas para completar el mensaje con un click (estilo chip). */
+  suggestions?: string[];
+  /** Cuando es true, ocupa todo el alto disponible del contenedor padre en vez del recuadro chico embebido. */
+  bare?: boolean;
 };
 
-export default function BookingMessages({ bookingId, recipientId, onRead }: Props) {
+export default function BookingMessages({ bookingId, recipientId, onRead, suggestions, bare }: Props) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<BookingMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,8 +76,8 @@ export default function BookingMessages({ bookingId, recipientId, onRead }: Prop
   }
 
   return (
-    <div className="rounded-lg border border-line bg-bg-raised p-3">
-      <div className="mb-2 max-h-56 space-y-2 overflow-y-auto pr-1">
+    <div className={bare ? 'flex h-full flex-col' : 'rounded-lg border border-line bg-bg-raised p-3'}>
+      <div className={bare ? 'flex-1 space-y-2 overflow-y-auto px-1 py-2' : 'mb-2 max-h-56 space-y-2 overflow-y-auto pr-1'}>
         {loading ? (
           <div className="flex items-center gap-2 py-2 text-xs text-ink-muted">
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> Cargando mensajes...
@@ -100,6 +104,21 @@ export default function BookingMessages({ bookingId, recipientId, onRead }: Prop
         )}
         <div ref={bottomRef} />
       </div>
+
+      {suggestions && suggestions.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-2">
+          {suggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setBody(s)}
+              className="rounded-pill border border-line bg-bg-base px-3 py-1.5 text-xs font-medium text-ink-muted transition hover:border-lime/40 hover:text-ink-primary"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
 
       <form onSubmit={handleSend} className="flex gap-2">
         <input
