@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { updateProfileName, updateProfileAvatar, uploadAvatarPhoto } from '@/lib/profile';
 import { getArtistByOwner, type DbArtist } from '@/lib/artists';
 import { supabase } from '@/lib/supabase';
+import ShareButton from '@/components/ShareButton';
 
 export default function Account() {
   const { user, profile, signOut, refreshProfile } = useAuth();
@@ -214,6 +215,21 @@ export default function Account() {
       {isGoogleAccount && (
         <p className="mt-4 text-center text-sm text-ink-muted">Iniciaste sesión con Google — la contraseña se administra desde tu cuenta de Google.</p>
       )}
+
+      {/* Invitar amigos */}
+      <div className="mt-4 rounded-card border border-line bg-bg-surface p-6 text-center">
+        <p className="font-semibold text-ink-primary">¿Te gusta MusicOn?</p>
+        <p className="mt-1 text-sm text-ink-muted">Invitá a un amigo a descubrir artistas o a publicar su perfil.</p>
+        <div className="mt-3 flex justify-center">
+          <ShareButton
+            title="MusicOn"
+            text="Descubrí MusicOn: reservá músicos en vivo para tu evento en minutos."
+            url={window.location.origin}
+            label="Invitá a un amigo"
+            className="flex items-center gap-2 rounded-pill bg-lime px-5 py-2.5 text-sm font-bold text-bg-base transition hover:bg-lime-dark"
+          />
+        </div>
+      </div>
 
       <button
         onClick={handleSignOut}

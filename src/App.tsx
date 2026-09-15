@@ -11,6 +11,7 @@ import RequestBooking from '@/pages/RequestBooking';
 import MySolicitudes from '@/pages/MySolicitudes';
 import Account from '@/pages/Account';
 import Onboarding from '@/pages/Onboarding';
+import Chat from '@/pages/Chat';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
           <Route path="/artista/nuevo" element={<RequireAuth><BecomeArtist /></RequireAuth>} />
           <Route path="/reservar/:artistId" element={<RequireAuth><RequestBooking /></RequireAuth>} />
           <Route path="/solicitudes" element={<RequireAuth><MySolicitudes /></RequireAuth>} />
+          <Route path="/chat" element={<RequireAuth><Chat /></RequireAuth>} />
           <Route path="/cuenta" element={<RequireAuth><Account /></RequireAuth>} />
           <Route path="/bienvenida" element={<RequireAuth><Onboarding /></RequireAuth>} />
         </Routes>

@@ -1,15 +1,18 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Music2, Compass, ClipboardList } from 'lucide-react';
+import { Music2, Compass, ClipboardList, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
+import { useUnreadCount } from '@/lib/useUnreadCount';
 
 const NAV_ITEMS = [
   { to: '/explore', label: 'Explorar', icon: Compass },
   { to: '/solicitudes', label: 'Solicitudes', icon: ClipboardList },
+  { to: '/chat', label: 'Chat', icon: MessageCircle },
 ];
 
 export default function Navbar() {
   const location = useLocation();
   const { user, profile } = useAuth();
+  const unread = useUnreadCount();
 
   const initials = (profile?.full_name || user?.email || '?')
     .trim()
@@ -37,15 +40,19 @@ export default function Navbar() {
         <nav className="hidden items-center gap-1 md:flex">
           {NAV_ITEMS.map(({ to, label, icon: Icon }) => {
             const active = location.pathname.startsWith(to);
+            const showBadge = to === '/chat' && unread > 0;
             return (
               <Link
                 key={to}
-                to={to}
-                className={`flex items-center gap-2 rounded-pill px-4 py-2 text-sm font-medium transition-colors ${
+                to={user ? to : '/login'}
+                className={`relative flex items-center gap-2 rounded-pill px-4 py-2 text-sm font-medium transition-colors ${
                   active ? 'bg-bg-raised text-lime' : 'text-ink-muted hover:text-ink-primary'
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <span className="relative">
+                  <Icon className="h-4 w-4" />
+                  {showBadge && <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-lime" />}
+                </span>
                 {label}
               </Link>
             );

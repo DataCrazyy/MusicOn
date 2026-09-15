@@ -4,6 +4,7 @@ import { ArrowLeft, BadgeCheck, MapPin, Users, Loader2 } from 'lucide-react';
 import { getArtistById, type DbArtist } from '@/lib/artists';
 import { useAuth } from '@/lib/AuthContext';
 import { toSpotifyEmbedUrl, spotifyEmbedHeight, toYouTubeEmbedUrl } from '@/lib/embeds';
+import ShareButton from '@/components/ShareButton';
 
 export default function ArtistProfile() {
   const { id } = useParams<{ id: string }>();
@@ -43,9 +44,17 @@ export default function ArtistProfile() {
   return (
     <div className="min-h-screen bg-bg-base py-8 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-3xl">
-        <Link to="/explore" className="mb-6 flex items-center gap-2 text-sm text-ink-muted hover:text-ink-primary">
-          <ArrowLeft className="h-4 w-4" /> Volver
-        </Link>
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <Link to="/explore" className="flex items-center gap-2 text-sm text-ink-muted hover:text-ink-primary">
+            <ArrowLeft className="h-4 w-4" /> Volver
+          </Link>
+          <ShareButton
+            title={artist.name}
+            text={`Mirá a ${artist.name} en MusicOn`}
+            url={window.location.href}
+            label="Compartir"
+          />
+        </div>
 
         <div className="overflow-hidden rounded-card border border-line bg-bg-surface">
           <div className="aspect-[16/9] w-full overflow-hidden">
