@@ -125,7 +125,9 @@ export default function Chat() {
         total: b.total,
       }));
 
-    const all = [...clientSide, ...artistSide];
+    // Orden por fecha de evento (mas proxima primero) en vez de mezclar "primero
+    // todas las de cliente, despues todas las de artista" sin ningun orden real.
+    const all = [...clientSide, ...artistSide].sort((a, b) => a.eventDate.localeCompare(b.eventDate));
     setConversations(all);
     setUnreadIds(unread);
     setRefreshKey((k) => k + 1);

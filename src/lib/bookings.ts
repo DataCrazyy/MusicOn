@@ -26,6 +26,8 @@ export type BookingWithArtist = {
   equipment: string | null;
   paid_at: string | null;
   created_at: string;
+  archived_by_client: boolean;
+  archived_by_artist: boolean;
   artist: {
     name: string;
     photo_url: string | null;
@@ -59,6 +61,8 @@ export type BookingWithClient = {
   duration_hours: number | null;
   equipment: string | null;
   created_at: string;
+  archived_by_client: boolean;
+  archived_by_artist: boolean;
   client: { full_name: string | null } | null;
 };
 
@@ -138,7 +142,7 @@ export async function listBookingsAsClient(clientId: string): Promise<BookingWit
     .from('bookings')
     .select('*, artist:artists(name, photo_url, owner_id)')
     .eq('client_id', clientId)
-    .order('created_at', { ascending: false });
+    .order('event_date', { ascending: true });
 
   if (error) throw error;
   return data as unknown as BookingWithArtist[];
@@ -149,7 +153,7 @@ export async function listBookingsForArtist(artistId: string): Promise<BookingWi
     .from('bookings')
     .select('*, client:profiles(full_name)')
     .eq('artist_id', artistId)
-    .order('created_at', { ascending: false });
+    .order('event_date', { ascending: true });
 
   if (error) throw error;
   return data as unknown as BookingWithClient[];
@@ -194,4 +198,13 @@ export async function respondToBooking(
       link: `/chat?b=${bookingId}`,
     });
   }
+}
+
+/** Archivar/desarchivar una solicitud o reserva -- es independiente por lado: el
+ * cliente puede archivarla de su vista sin afectar lo que ve el artista, y
+ * viceversa. Sirve para limpiar Solicitudes y Chat sin perder el historial. */
+export async function setBookingArchived(bookingId: string, role: 'client' | 'artist', archived: boolean) {
+  const column = role === 'client' ? 'archived_by_client' : 'archived_by_artist';
+  const { error } = await supabase.from('bookings').update({ [column]: archived }).eq('id', bookingId);
+  if (error) throw error;
 }

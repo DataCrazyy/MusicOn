@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, Check, X, Calendar, MapPin, Clock, Users, MessageCircle, ClipboardList, CheckCircle2 } from 'lucide-react';
+import { Loader2, Check, X, Calendar, MapPin, Clock, Users, MessageCircle, ClipboardList, CheckCircle2, Archive, ArchiveRestore } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { getArtistByOwner, addBlockedDate, type DbArtist } from '@/lib/artists';
 import { formatPrice } from '@/lib/format';
@@ -9,6 +9,7 @@ import {
   listBookingsForArtist,
   respondToBooking,
   markBookingCompleted,
+  setBookingArchived,
   type BookingWithArtist,
   type BookingWithClient,
   type BookingStatus,
@@ -42,6 +43,8 @@ export default function MySolicitudes() {
   } | null>(null);
   const [responseMsg, setResponseMsg] = useState('');
   const [view, setView] = useState<'client' | 'artist'>('client');
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivingId, setArchivingId] = useState<string | null>(null);
 
   async function load() {
     if (!user) return;
@@ -103,6 +106,16 @@ export default function MySolicitudes() {
     }
   }
 
+  async function handleToggleArchive(bookingId: string, role: 'client' | 'artist', archived: boolean) {
+    setArchivingId(bookingId);
+    try {
+      await setBookingArchived(bookingId, role, archived);
+      await load();
+    } finally {
+      setArchivingId(null);
+    }
+  }
+
 
   if (!user) {
     return (
@@ -122,10 +135,25 @@ export default function MySolicitudes() {
     );
   }
 
+  // El archivado es independiente por lado (archived_by_client / archived_by_artist):
+  // archivar una solicitud no la oculta de la otra parte, solo de tu propia vista.
+  const visibleAsClient = asClient.filter((b) => (showArchived ? b.archived_by_client : !b.archived_by_client));
+  const visibleAsArtist = asArtist.filter((b) => (showArchived ? b.archived_by_artist : !b.archived_by_artist));
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-bg-base py-8 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-3xl space-y-6">
-        <h1 className="font-display text-3xl font-bold text-ink-primary">Mis solicitudes</h1>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="font-display text-3xl font-bold text-ink-primary">Mis solicitudes</h1>
+          <button
+            type="button"
+            onClick={() => setShowArchived((v) => !v)}
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-pill border border-line px-3 py-1.5 text-xs font-semibold text-ink-muted transition hover:border-lime/40 hover:text-ink-primary"
+          >
+            {showArchived ? <ArchiveRestore className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
+            {showArchived ? 'Ver activas' : 'Ver archivadas'}
+          </button>
+        </div>
 
         {/* Filtro Cliente/Artista — solo tiene sentido mostrarlo si el usuario tiene
             ambos roles; si no, no hay nada que filtrar. */}
@@ -156,11 +184,13 @@ export default function MySolicitudes() {
           {!myArtist && (
             <h2 className="mb-3 font-display text-lg font-bold text-ink-primary">Como cliente</h2>
           )}
-          {asClient.length === 0 ? (
-            <p className="text-sm text-ink-muted">Todavía no pediste ninguna reserva.</p>
+          {visibleAsClient.length === 0 ? (
+            <p className="text-sm text-ink-muted">
+              {showArchived ? 'No tienes solicitudes archivadas.' : 'Todavía no pediste ninguna reserva.'}
+            </p>
           ) : (
             <div className="space-y-3">
-              {asClient.map((b) => (
+              {visibleAsClient.map((b) => (
                 <div
                   key={b.id}
                   className="space-y-3 rounded-card border border-line bg-bg-surface p-4"
@@ -264,16 +294,33 @@ export default function MySolicitudes() {
                     <span className={`truncate rounded-pill px-3 py-1 text-xs font-semibold ${STATUS_LABELS[b.status].className}`}>
                       {STATUS_LABELS[b.status].label}
                     </span>
-                    <Link
-                      to={`/chat?b=${b.id}`}
-                      title="Ir al chat de esta solicitud"
-                      className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-line text-ink-muted transition hover:border-lime/40 hover:text-lime"
-                    >
-                      <MessageCircle className="h-4 w-4" />
-                      {unreadIds.has(b.id) && (
-                        <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-bg-surface bg-lime" />
-                      )}
-                    </Link>
+                    <div className="flex flex-shrink-0 items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleArchive(b.id, 'client', !b.archived_by_client)}
+                        disabled={archivingId === b.id}
+                        title={b.archived_by_client ? 'Desarchivar' : 'Archivar'}
+                        className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-ink-muted transition hover:border-lime/40 hover:text-lime disabled:opacity-60"
+                      >
+                        {archivingId === b.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : b.archived_by_client ? (
+                          <ArchiveRestore className="h-4 w-4" />
+                        ) : (
+                          <Archive className="h-4 w-4" />
+                        )}
+                      </button>
+                      <Link
+                        to={`/chat?b=${b.id}`}
+                        title="Ir al chat de esta solicitud"
+                        className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-line text-ink-muted transition hover:border-lime/40 hover:text-lime"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        {unreadIds.has(b.id) && (
+                          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-bg-surface bg-lime" />
+                        )}
+                      </Link>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -286,11 +333,13 @@ export default function MySolicitudes() {
             <h2 className="mb-3 font-display text-lg font-bold text-ink-primary">
               Como artista ({myArtist.name})
             </h2>
-            {asArtist.length === 0 ? (
-              <p className="text-sm text-ink-muted">Todavía no recibiste solicitudes.</p>
+            {visibleAsArtist.length === 0 ? (
+              <p className="text-sm text-ink-muted">
+                {showArchived ? 'No tienes solicitudes archivadas.' : 'Todavía no recibiste solicitudes.'}
+              </p>
             ) : (
               <div className="space-y-3">
-                {asArtist.map((b) => (
+                {visibleAsArtist.map((b) => (
                   <div
                     key={b.id}
                     className="flex flex-col gap-3 rounded-card border border-line bg-bg-surface p-4"
@@ -363,6 +412,21 @@ export default function MySolicitudes() {
                             </span>
                           )
                         )}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleArchive(b.id, 'artist', !b.archived_by_artist)}
+                          disabled={archivingId === b.id}
+                          title={b.archived_by_artist ? 'Desarchivar' : 'Archivar'}
+                          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-line text-ink-muted transition hover:border-lime/40 hover:text-lime disabled:opacity-60"
+                        >
+                          {archivingId === b.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : b.archived_by_artist ? (
+                            <ArchiveRestore className="h-4 w-4" />
+                          ) : (
+                            <Archive className="h-4 w-4" />
+                          )}
+                        </button>
                         <Link
                           to={`/chat?b=${b.id}`}
                           title="Ir al chat de esta solicitud"
