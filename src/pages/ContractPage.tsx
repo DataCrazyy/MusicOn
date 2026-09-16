@@ -15,6 +15,9 @@ import {
   X,
   History,
   Send,
+  ChevronDown,
+  ChevronUp,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { getBookingById, type BookingWithArtist } from '@/lib/bookings';
@@ -33,12 +36,13 @@ import {
 } from '@/lib/contracts';
 import {
   listNegotiationEvents,
-  proposeChange,
+  proposeModification,
   acceptNegotiationEvent,
   rejectNegotiationEvent,
-  FIELD_LABELS,
+  getModificationBundle,
+  getPreviousModificationBundle,
   type NegotiationEvent,
-  type NegotiableField,
+  type ModificationBundle,
 } from '@/lib/negotiation';
 import { STATUS_LABELS } from '@/lib/bookingStatus';
 import { createNotification } from '@/lib/notifications';
@@ -67,12 +71,14 @@ export default function ContractPage() {
 
   const [events, setEvents] = useState<NegotiationEvent[]>([]);
   const [showModForm, setShowModForm] = useState(false);
-  const [modField, setModField] = useState<NegotiableField>('price');
-  const [modValue, setModValue] = useState('');
+  const [modDraft, setModDraft] = useState<ModificationBundle | null>(null);
   const [modMessage, setModMessage] = useState('');
   const [modSaving, setModSaving] = useState(false);
   const [modError, setModError] = useState<string | null>(null);
   const [clientName, setClientName] = useState('Cliente');
+  // 15: contraer el documento del contrato por defecto para no tener que scrollear
+  // todo el texto legal antes de llegar a confirmar/firmar.
+  const [showFullContract, setShowFullContract] = useState(false);
   // 74/75: el artista primero revisa y confirma las condiciones, y recien ahi pasa
   // a la pantalla de firma -- nunca un formulario de firma directo sin ese paso.
   const [artistConfirmedConditions, setArtistConfirmedConditions] = useState(false);
@@ -204,49 +210,35 @@ export default function ContractPage() {
     window.print();
   }
 
-  function fieldCurrentValue(field: NegotiableField): string {
-    if (!booking) return '';
-    switch (field) {
-      case 'price':
-        return String(booking.total);
-      case 'start_time':
-        return booking.start_time ?? '';
-      case 'duration_hours':
-        return booking.duration_hours != null ? String(booking.duration_hours) : '';
-      case 'equipment':
-        return booking.equipment ?? '';
-      case 'notes':
-        return booking.notes ?? '';
-    }
+  /** Snapshot de los valores vigentes de la reserva, en el mismo formato que se usa
+   * para pedir una modificación en bloque -- todo junto, no campo por campo. */
+  function currentModificationBundle(): ModificationBundle {
+    return {
+      price: booking?.total ?? 0,
+      duration_hours: booking?.duration_hours ?? null,
+      start_time: booking?.start_time ?? null,
+      equipment: booking?.equipment ?? null,
+      venue: booking?.venue ?? null,
+      venue_reference: booking?.venue_reference ?? null,
+      notes: booking?.notes ?? null,
+    };
   }
 
   async function submitModification() {
-    if (!booking || !user || !modValue.trim()) return;
-    // 50. La duración nunca puede ser negativa ni cero, tampoco en modificaciones
-    // posteriores a la firma.
-    if (modField === 'duration_hours' && !(Number(modValue) > 0)) {
-      setModError('La duración debe ser mayor a 0 horas.');
-      return;
-    }
-    if (modField === 'price' && !(Number(modValue) > 0)) {
-      setModError('El precio debe ser mayor a 0.');
-      return;
-    }
+    if (!booking || !user || !modDraft) return;
     setModError(null);
     setModSaving(true);
     try {
-      await proposeChange({
+      await proposeModification({
         bookingId: booking.id,
-        field: modField,
-        oldValue: fieldCurrentValue(modField),
-        newValue: modValue.trim(),
+        previous: currentModificationBundle(),
+        next: modDraft,
         message: modMessage.trim() || undefined,
         proposedBy: user.id,
         proposedRole: isClient ? 'client' : 'artist',
-        afterSignature: true,
       });
       setShowModForm(false);
-      setModValue('');
+      setModDraft(null);
       setModMessage('');
       await load();
     } catch (err) {
@@ -351,6 +343,12 @@ export default function ContractPage() {
   // aceptan nuevas modificaciones ni negociaciones sobre ella.
   const canRequestModification = isPaidAndConfirmed && booking.status !== 'completed';
   const pendingModification = events.find((e) => e.status === 'pending' && e.after_signature) ?? null;
+  // 8 (Modificaciones): se recomienda pedir cambios con al menos 48 horas de
+  // anticipación -- se avisa, pero no se bloquea la solicitud.
+  const hoursUntilEvent = booking.start_time
+    ? (new Date(`${booking.event_date}T${booking.start_time}`).getTime() - Date.now()) / 3_600_000
+    : (new Date(`${booking.event_date}T00:00:00`).getTime() - Date.now()) / 3_600_000;
+  const withinModificationWindow = hoursUntilEvent < 48;
   const signatureStatusText = isPaidAndConfirmed
     ? 'Contrato firmado por ambas partes'
     : !artistSigned
@@ -396,9 +394,25 @@ export default function ContractPage() {
           </div>
         )}
         {isPaidAndConfirmed && booking.status !== 'completed' && (
-          <div className="mb-6 flex items-center gap-2 rounded-card border border-lime/30 bg-lime/10 p-4 text-sm text-lime print:hidden">
-            <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
-            Contratación confirmada. Ya puedes descargar el contrato en PDF.
+          <div className="mb-6 rounded-card border border-lime/30 bg-lime/10 p-5 text-sm text-lime print:hidden">
+            <p className="flex items-center gap-2 font-bold">
+              <CheckCircle2 className="h-5 w-5 flex-shrink-0" /> Pago confirmado
+            </p>
+            <div className="mt-3 rounded-lg border border-lime/20 bg-bg-base p-3 text-ink-primary">
+              <div className="flex items-center justify-between text-xs text-ink-muted">
+                <span>Contrato</span>
+                <span>{contractNumberFor(booking.id)}</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between">
+                <span className="text-sm">{booking.artist?.name}</span>
+                <span className="text-lg font-bold text-lime">{formatPrice(booking.total)}</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between text-xs text-ink-muted">
+                <span>{booking.event_date} {booking.start_time ?? ''}</span>
+                <span>{booking.paid_at ? new Date(booking.paid_at).toLocaleDateString('es-BO') : ''}</span>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-ink-muted">Reserva confirmada — ya puedes descargar el contrato en PDF.</p>
           </div>
         )}
 
@@ -470,11 +484,18 @@ export default function ContractPage() {
         {/* Contrato digital — documento visual profesional, con las mismas cláusulas
             configurables (lib/contractClauses.ts) que el texto guardado en contracts.terms.
             La descarga en PDF está disponible desde que existe el contrato, no solo al
-            cerrarse la reserva — sirve para revisarlo/guardarlo en cualquier etapa. */}
+            cerrarse la reserva — sirve para revisarlo/guardarlo en cualquier etapa.
+            Contraído por defecto (71) para no tener que scrollear todo el texto legal
+            antes de llegar a confirmar/firmar. */}
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 print:hidden">
-          <div className="flex items-center gap-1.5 text-sm font-bold text-ink-primary">
+          <button
+            type="button"
+            onClick={() => setShowFullContract((v) => !v)}
+            className="flex items-center gap-1.5 text-sm font-bold text-ink-primary"
+          >
             <FileSignature className="h-4 w-4" /> Contrato digital
-          </div>
+            {showFullContract ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
           <button
             onClick={handleDownloadPdf}
             className="flex items-center gap-1.5 rounded-pill border border-line px-3 py-1.5 text-xs font-bold text-ink-primary transition hover:border-lime/40"
@@ -482,26 +503,53 @@ export default function ContractPage() {
             <Download className="h-3.5 w-3.5" /> Descargar en PDF
           </button>
         </div>
-        <div className="mb-6 max-h-[70vh] overflow-y-auto print:max-h-none print:overflow-visible">
+        {!showFullContract && (
+          <button
+            type="button"
+            onClick={() => setShowFullContract(true)}
+            className="mb-6 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-line px-3 py-3 text-xs font-semibold text-ink-muted transition hover:border-lime/40 hover:text-ink-primary print:hidden"
+          >
+            Ver el documento completo del contrato <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+        )}
+        <div
+          className={`mb-6 overflow-y-auto print:max-h-none print:overflow-visible ${
+            showFullContract ? 'max-h-[70vh]' : 'hidden print:block'
+          }`}
+        >
           <ContractDocument booking={booking} clientName={clientName} contract={contract} />
         </div>
 
         {/* Esperando que el artista firme y despues envíe el contrato -- el cliente
             ahora tiene una acción explícita para avisarle que ya revisó todo, en vez de
-            solo poder esperar sin hacer nada (ver handleNotifyArtist). */}
+            solo poder esperar sin hacer nada (ver handleNotifyArtist). Una vez avisado,
+            se muestra un recuadro claro de "hay que esperar" con salida al inicio, en
+            vez de dejar a la persona sin saber qué hacer en esta pantalla. */}
         {waitingOnArtistSignature && (
-          <div className="mb-6 rounded-card border border-line bg-bg-surface p-5 text-sm text-ink-muted print:hidden">
-            <p>
-              {!artistSigned
-                ? `Pendiente de firma del artista — cuando ${booking.artist?.name} firme el contrato y te lo envíe vas a poder revisarlo y firmarlo tú también.`
-                : `${booking.artist?.name} ya firmó el contrato — todavía no te lo envió. En cuanto lo haga vas a poder revisarlo y firmarlo.`}
-            </p>
-            {!artistSigned && (
-              notifiedArtist ? (
-                <p className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-lime">
-                  <Check className="h-3.5 w-3.5" /> Le avisamos a {booking.artist?.name} que estás listo/a.
-                </p>
-              ) : (
+          !artistSigned && notifiedArtist ? (
+            <div className="mb-6 rounded-card border border-lime/30 bg-lime/10 p-5 text-sm print:hidden">
+              <p className="flex items-center gap-2 font-bold text-lime">
+                <Check className="h-5 w-5 flex-shrink-0" /> Le avisamos a {booking.artist?.name}
+              </p>
+              <p className="mt-2 text-xs text-ink-muted">
+                Ahora hay que esperar a que {booking.artist?.name} revise y firme el contrato. Te vamos
+                a notificar apenas lo haga y te lo envíe — no hace falta que te quedes en esta pantalla.
+              </p>
+              <Link
+                to="/explore"
+                className="mt-4 flex items-center justify-center gap-1.5 rounded-pill border border-line px-4 py-2.5 text-sm font-bold text-ink-primary transition hover:border-lime/40"
+              >
+                Volver al inicio
+              </Link>
+            </div>
+          ) : (
+            <div className="mb-6 rounded-card border border-line bg-bg-surface p-5 text-sm text-ink-muted print:hidden">
+              <p>
+                {!artistSigned
+                  ? `Pendiente de firma del artista — cuando ${booking.artist?.name} firme el contrato y te lo envíe vas a poder revisarlo y firmarlo tú también.`
+                  : `${booking.artist?.name} ya firmó el contrato — todavía no te lo envió. En cuanto lo haga vas a poder revisarlo y firmarlo.`}
+              </p>
+              {!artistSigned && (
                 <button
                   type="button"
                   onClick={handleNotifyArtist}
@@ -511,9 +559,9 @@ export default function ContractPage() {
                   {notifyingArtist ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                   Avisarle que estoy listo/a para firmar
                 </button>
-              )
-            )}
-          </div>
+              )}
+            </div>
+          )
         )}
 
         {/* 74/77: el artista firmó, pero todavía no decidió enviarlo -- acción
@@ -687,7 +735,9 @@ export default function ContractPage() {
           </div>
         )}
 
-        {/* Pagar (simulado) */}
+        {/* Pagar (simulado) -- por ahora con un QR de referencia (pago por QR es el
+            método más usado en Bolivia); el botón de abajo simula la confirmación del
+            banco, ya que todavía no hay una pasarela de pago real integrada. */}
         {canPay && (
           <div className="mb-6 rounded-card border border-line bg-bg-surface p-5 print:hidden">
             <h2 className="mb-2 text-sm font-bold text-ink-primary">Pago</h2>
@@ -695,20 +745,38 @@ export default function ContractPage() {
               Este es un pago simulado (MVP) — todavía no se procesa dinero real. Al confirmar, la
               contratación queda cerrada.
             </p>
+            <div className="mb-4 flex flex-col items-center gap-2 rounded-lg border border-line bg-bg-base p-4">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+                  `MusicOn|${contractNumberFor(booking.id)}|${booking.total}`
+                )}`}
+                alt="Código QR de pago"
+                width={180}
+                height={180}
+                className="h-[180px] w-[180px] max-w-full rounded-lg bg-white p-2"
+              />
+              <p className="text-center text-xs text-ink-muted">
+                Escanea el código QR con tu app bancaria para pagar {formatPrice(booking.total)}
+                <br />
+                Contrato {contractNumberFor(booking.id)}
+              </p>
+            </div>
             <button
               onClick={handlePay}
               disabled={paying}
               className="flex w-full items-center justify-center gap-2 rounded-pill bg-lime px-4 py-3 text-sm font-bold text-bg-base transition hover:bg-lime-dark disabled:opacity-60"
             >
               {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-              Pagar {formatPrice(booking.total)} y confirmar
+              Ya pagué — confirmar pago de {formatPrice(booking.total)}
             </button>
           </div>
         )}
 
-        {/* Modificaciones después de firmar — nunca se sobrescribe un contrato firmado en
-            silencio: todo cambio pasa por aprobación y abre una nueva versión. Se cierran
-            en cuanto el servicio se marca como realizado. */}
+        {/* Modificaciones después de firmar — 71: ahora se piden en bloque (precio,
+            duración, horario, equipamiento, ubicación, referencia y condiciones juntos),
+            no campo por campo. Nunca se sobrescribe un contrato firmado en silencio:
+            todo cambio pasa por aprobación y abre una nueva versión. Se cierran en
+            cuanto el servicio se marca como realizado. */}
         {canRequestModification && (
           <div className="mb-6 rounded-card border border-line bg-bg-surface p-5 print:hidden">
             <h2 className="mb-1 flex items-center gap-1.5 text-sm font-bold text-ink-primary">
@@ -720,89 +788,166 @@ export default function ContractPage() {
               </p>
             )}
 
+            {withinModificationWindow && !pendingModification && (
+              <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber/30 bg-amber/10 p-3 text-xs text-amber">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                El evento es en menos de 48 horas. La cláusula 8 (Modificaciones) del contrato
+                recomienda pedir cambios con esa anticipación — igual puedes solicitarlo, pero
+                puede que a la otra parte le cueste más ajustarse.
+              </div>
+            )}
+
             {pendingModification ? (
-              pendingModification.proposed_by === user?.id ? (
-                <p className="text-xs text-ink-muted">
-                  Esperando aprobación de la otra parte para cambiar{' '}
-                  {(FIELD_LABELS[pendingModification.field as keyof typeof FIELD_LABELS] ?? pendingModification.field).toLowerCase()} a "{pendingModification.new_value}".
-                </p>
-              ) : (
-                <div className="rounded-lg border border-amber/30 bg-amber/10 p-3 text-xs">
-                  <p className="font-bold text-ink-primary">Solicitud de modificación</p>
-                  <p className="mt-1 text-ink-muted">Campo: {FIELD_LABELS[pendingModification.field as keyof typeof FIELD_LABELS] ?? pendingModification.field}</p>
-                  <p className="text-ink-muted">
-                    Valor anterior: <span className="text-ink-primary">{pendingModification.old_value || '—'}</span>
+              (() => {
+                const nextBundle = getModificationBundle(pendingModification);
+                const prevBundle = getPreviousModificationBundle(pendingModification);
+                const rows: { label: string; key: keyof ModificationBundle }[] = [
+                  { label: 'Precio', key: 'price' },
+                  { label: 'Duración', key: 'duration_hours' },
+                  { label: 'Horario', key: 'start_time' },
+                  { label: 'Equipamiento', key: 'equipment' },
+                  { label: 'Ubicación', key: 'venue' },
+                  { label: 'Referencia', key: 'venue_reference' },
+                  { label: 'Condiciones', key: 'notes' },
+                ];
+                const fmt = (key: keyof ModificationBundle, v: ModificationBundle[typeof key]) => {
+                  if (v == null || v === '') return '—';
+                  if (key === 'price') return formatPrice(Number(v));
+                  if (key === 'duration_hours') return `${v} horas`;
+                  return String(v);
+                };
+                return pendingModification.proposed_by === user?.id ? (
+                  <p className="text-xs text-ink-muted">
+                    Esperando aprobación de la otra parte para tu solicitud de modificación.
+                    {pendingModification.message && <> Motivo: "{pendingModification.message}"</>}
                   </p>
-                  <p className="text-ink-muted">
-                    Nuevo valor: <span className="font-bold text-ink-primary">{pendingModification.new_value}</span>
-                  </p>
-                  {pendingModification.message && (
-                    <p className="mt-1 italic text-ink-primary">"{pendingModification.message}"</p>
-                  )}
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      onClick={() => handleAcceptModification(pendingModification)}
-                      disabled={modSaving}
-                      className="flex items-center gap-1.5 rounded-pill bg-lime px-3 py-1.5 text-xs font-bold text-bg-base hover:bg-lime-dark disabled:opacity-60"
-                    >
-                      <Check className="h-3.5 w-3.5" /> Aprobar
-                    </button>
-                    <button
-                      onClick={() => handleRejectModification(pendingModification)}
-                      disabled={modSaving}
-                      className="flex items-center gap-1.5 rounded-pill border border-line px-3 py-1.5 text-xs font-bold text-ink-primary hover:border-red-400/40 hover:text-red-400"
-                    >
-                      <X className="h-3.5 w-3.5" /> Rechazar
-                    </button>
+                ) : (
+                  <div className="rounded-lg border border-amber/30 bg-amber/10 p-3 text-xs">
+                    <p className="font-bold text-ink-primary">Solicitud de modificación</p>
+                    {nextBundle && (
+                      <ul className="mt-2 space-y-1">
+                        {rows
+                          .filter((r) => !prevBundle || prevBundle[r.key] !== nextBundle[r.key])
+                          .map((r) => (
+                            <li key={r.key} className="text-ink-muted">
+                              {r.label}: {fmt(r.key, prevBundle?.[r.key] ?? null)} →{' '}
+                              <span className="font-bold text-ink-primary">{fmt(r.key, nextBundle[r.key])}</span>
+                            </li>
+                          ))}
+                      </ul>
+                    )}
+                    {pendingModification.message && (
+                      <p className="mt-2 italic text-ink-primary">"{pendingModification.message}"</p>
+                    )}
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={() => handleAcceptModification(pendingModification)}
+                        disabled={modSaving}
+                        className="flex items-center gap-1.5 rounded-pill bg-lime px-3 py-1.5 text-xs font-bold text-bg-base hover:bg-lime-dark disabled:opacity-60"
+                      >
+                        <Check className="h-3.5 w-3.5" /> Aprobar
+                      </button>
+                      <button
+                        onClick={() => handleRejectModification(pendingModification)}
+                        disabled={modSaving}
+                        className="flex items-center gap-1.5 rounded-pill border border-line px-3 py-1.5 text-xs font-bold text-ink-primary hover:border-red-400/40 hover:text-red-400"
+                      >
+                        <X className="h-3.5 w-3.5" /> Rechazar
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )
-            ) : showModForm ? (
-              <div className="rounded-lg border border-line bg-bg-base p-3">
-                <label className="mb-1 block text-[11px] font-semibold text-ink-muted">Campo a modificar</label>
-                <select
-                  value={modField}
-                  onChange={(e) => {
-                    const f = e.target.value as NegotiableField;
-                    setModField(f);
-                    setModValue(fieldCurrentValue(f));
-                  }}
-                  className="mb-2 w-full rounded-lg border border-line bg-bg-surface px-3 py-2 text-sm text-ink-primary outline-none focus:border-lime"
-                >
-                  {(Object.keys(FIELD_LABELS) as NegotiableField[]).map((f) => (
-                    <option key={f} value={f}>
-                      {FIELD_LABELS[f]}
-                    </option>
-                  ))}
-                </select>
-                <label className="mb-1 block text-[11px] font-semibold text-ink-muted">Nuevo valor</label>
+                );
+              })()
+            ) : showModForm && modDraft ? (
+              <div className="w-full min-w-0 rounded-lg border border-line bg-bg-base p-3">
+                <p className="mb-2 text-[11px] text-ink-muted">
+                  Edita todos los campos que quieras cambiar y envíalos juntos como una sola solicitud.
+                </p>
+
+                <label className="mb-1 block text-[11px] font-semibold text-ink-muted">Precio (Bs)</label>
                 <input
-                  type={modField === 'price' || modField === 'duration_hours' ? 'number' : modField === 'start_time' ? 'time' : 'text'}
-                  min={modField === 'duration_hours' ? '0.5' : modField === 'price' ? '0' : undefined}
-                  step={modField === 'duration_hours' ? '0.5' : undefined}
-                  value={modValue}
-                  onChange={(e) => setModValue(e.target.value)}
-                  className="mb-2 w-full rounded-lg border border-line bg-bg-surface px-3 py-2 text-sm text-ink-primary outline-none focus:border-lime"
+                  type="number"
+                  min="0"
+                  value={modDraft.price}
+                  onChange={(e) => setModDraft((d) => (d ? { ...d, price: Number(e.target.value) } : d))}
+                  className="mb-2 w-full min-w-0 rounded-lg border border-line bg-bg-surface px-3 py-2 text-sm text-ink-primary outline-none focus:border-lime"
                 />
+
+                <label className="mb-1 block text-[11px] font-semibold text-ink-muted">Duración (horas)</label>
+                <input
+                  type="number"
+                  min="0.5"
+                  step="0.5"
+                  value={modDraft.duration_hours ?? ''}
+                  onChange={(e) =>
+                    setModDraft((d) => (d ? { ...d, duration_hours: e.target.value ? Number(e.target.value) : null } : d))
+                  }
+                  className="mb-2 w-full min-w-0 rounded-lg border border-line bg-bg-surface px-3 py-2 text-sm text-ink-primary outline-none focus:border-lime"
+                />
+
+                <label className="mb-1 block text-[11px] font-semibold text-ink-muted">Horario</label>
+                <input
+                  type="time"
+                  value={modDraft.start_time ?? ''}
+                  onChange={(e) => setModDraft((d) => (d ? { ...d, start_time: e.target.value } : d))}
+                  style={{ colorScheme: 'dark' }}
+                  className="mb-2 w-full min-w-0 rounded-lg border border-line bg-bg-surface px-3 py-2 text-sm text-ink-primary outline-none focus:border-lime"
+                />
+
+                <label className="mb-1 block text-[11px] font-semibold text-ink-muted">Equipamiento</label>
+                <input
+                  type="text"
+                  value={modDraft.equipment ?? ''}
+                  onChange={(e) => setModDraft((d) => (d ? { ...d, equipment: e.target.value } : d))}
+                  className="mb-2 w-full min-w-0 rounded-lg border border-line bg-bg-surface px-3 py-2 text-sm text-ink-primary outline-none focus:border-lime"
+                />
+
+                <label className="mb-1 block text-[11px] font-semibold text-ink-muted">Ubicación del evento</label>
+                <input
+                  type="text"
+                  value={modDraft.venue ?? ''}
+                  onChange={(e) => setModDraft((d) => (d ? { ...d, venue: e.target.value } : d))}
+                  className="mb-2 w-full min-w-0 rounded-lg border border-line bg-bg-surface px-3 py-2 text-sm text-ink-primary outline-none focus:border-lime"
+                />
+
+                <label className="mb-1 block text-[11px] font-semibold text-ink-muted">Referencia adicional</label>
+                <input
+                  type="text"
+                  value={modDraft.venue_reference ?? ''}
+                  onChange={(e) => setModDraft((d) => (d ? { ...d, venue_reference: e.target.value } : d))}
+                  className="mb-2 w-full min-w-0 rounded-lg border border-line bg-bg-surface px-3 py-2 text-sm text-ink-primary outline-none focus:border-lime"
+                />
+
+                <label className="mb-1 block text-[11px] font-semibold text-ink-muted">Condiciones adicionales</label>
+                <textarea
+                  value={modDraft.notes ?? ''}
+                  onChange={(e) => setModDraft((d) => (d ? { ...d, notes: e.target.value } : d))}
+                  rows={2}
+                  className="mb-2 w-full min-w-0 rounded-lg border border-line bg-bg-surface px-3 py-2 text-sm text-ink-primary outline-none focus:border-lime"
+                />
+
                 {modError && <p className="mb-2 text-xs text-red-400">{modError}</p>}
                 <label className="mb-1 block text-[11px] font-semibold text-ink-muted">Motivo</label>
                 <textarea
                   value={modMessage}
                   onChange={(e) => setModMessage(e.target.value)}
                   rows={2}
-                  className="mb-2 w-full rounded-lg border border-line bg-bg-surface px-3 py-2 text-sm text-ink-primary outline-none focus:border-lime"
+                  className="mb-2 w-full min-w-0 rounded-lg border border-line bg-bg-surface px-3 py-2 text-sm text-ink-primary outline-none focus:border-lime"
                   placeholder='Ej: "El evento comenzará una hora más tarde."'
                 />
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setShowModForm(false)}
+                    onClick={() => {
+                      setShowModForm(false);
+                      setModDraft(null);
+                    }}
                     className="flex-1 rounded-pill border border-line px-4 py-2 text-xs font-bold text-ink-primary hover:border-lime/40"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={submitModification}
-                    disabled={modSaving || !modValue.trim()}
+                    disabled={modSaving}
                     className="flex flex-1 items-center justify-center gap-1.5 rounded-pill bg-lime px-4 py-2 text-xs font-bold text-bg-base hover:bg-lime-dark disabled:opacity-60"
                   >
                     {modSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
@@ -814,8 +959,7 @@ export default function ContractPage() {
               <button
                 type="button"
                 onClick={() => {
-                  setModField('price');
-                  setModValue(fieldCurrentValue('price'));
+                  setModDraft(currentModificationBundle());
                   setModMessage('');
                   setModError(null);
                   setShowModForm(true);

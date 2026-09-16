@@ -8,7 +8,7 @@ import {
   markThreadRead,
   type BookingMessage,
 } from '@/lib/messages';
-import { listNegotiationEvents, FIELD_LABELS, getProposalBundle, type NegotiationEvent } from '@/lib/negotiation';
+import { listNegotiationEvents, FIELD_LABELS, getProposalBundle, getModificationBundle, type NegotiationEvent } from '@/lib/negotiation';
 import { formatPrice } from '@/lib/format';
 
 type Props = {
@@ -48,6 +48,18 @@ function eventLine(e: NegotiationEvent): string {
     if (e.status === 'accepted') return `${who} envió ${label} (${summary}) — fue aceptada.`;
     if (e.status === 'rejected') return `${who} envió ${label} (${summary}) — fue rechazada.`;
     return `${who} envió ${label}: ${summary}.`;
+  }
+
+  if (e.field === 'modification') {
+    const bundle = getModificationBundle(e);
+    const summary = bundle
+      ? `Precio ${formatPrice(bundle.price)}${bundle.duration_hours ? `, ${bundle.duration_hours} horas` : ''}${
+          bundle.start_time ? `, ${bundle.start_time}` : ''
+        }${bundle.venue ? `, ${bundle.venue}` : ''}`
+      : '';
+    if (e.status === 'accepted') return `${who} solicitó una modificación del contrato (${summary}) — fue aprobada.`;
+    if (e.status === 'rejected') return `${who} solicitó una modificación del contrato (${summary}) — fue rechazada.`;
+    return `${who} solicitó una modificación del contrato: ${summary}.`;
   }
 
   const field = (FIELD_LABELS[e.field as keyof typeof FIELD_LABELS] ?? e.field).toLowerCase();

@@ -34,7 +34,7 @@ export type NegotiationEvent = {
   // 'proposal' = propuesta en bloque (ver ProposalBundle). Los demás valores son el
   // modelo antiguo de un campo a la vez, que sigue usándose solo para solicitar
   // modificaciones puntuales después de que el contrato ya fue firmado.
-  field: NegotiableField | 'proposal';
+  field: NegotiableField | 'proposal' | 'modification';
   old_value: string | null;
   new_value: string;
   message: string | null;
@@ -65,6 +65,39 @@ export function getProposalBundle(e: NegotiationEvent): ProposalBundle | null {
  * "Propuesta anterior" vs "Nueva propuesta" como dos bloques comparables. */
 export function getPreviousBundle(e: NegotiationEvent): ProposalBundle | null {
   return e.field === 'proposal' ? parseBundle(e.old_value) : null;
+}
+
+/** Paquete completo de una solicitud de modificación DESPUÉS de firmar el contrato --
+ * a diferencia de ProposalBundle (antes de firmar), acá sí se puede tocar la
+ * ubicación del evento (venue/venue_reference) y las condiciones adicionales
+ * (notes), porque el pedido de cambio pasa por aprobación explícita de la otra
+ * parte antes de aplicarse. Se edita todo junto en una sola solicitud en vez de
+ * campo por campo. */
+export type ModificationBundle = {
+  price: number;
+  duration_hours: number | null;
+  start_time: string | null;
+  equipment: string | null;
+  venue: string | null;
+  venue_reference: string | null;
+  notes: string | null;
+};
+
+function parseModification(json: string | null): ModificationBundle | null {
+  if (!json) return null;
+  try {
+    return JSON.parse(json) as ModificationBundle;
+  } catch {
+    return null;
+  }
+}
+
+export function getModificationBundle(e: NegotiationEvent): ModificationBundle | null {
+  return e.field === 'modification' ? parseModification(e.new_value) : null;
+}
+
+export function getPreviousModificationBundle(e: NegotiationEvent): ModificationBundle | null {
+  return e.field === 'modification' ? parseModification(e.old_value) : null;
 }
 
 function validateBundle(bundle: ProposalBundle) {
@@ -147,8 +180,71 @@ export async function proposeBundle(input: {
   return data as NegotiationEvent;
 }
 
-/** Propone un cambio puntual de un solo campo — se usa solo para solicitar
- * modificaciones después de que el contrato ya fue firmado (ContractPage). */
+/** Propone una modificación en bloque después de firmar (Precio, Duración,
+ * Horario, Equipamiento, Ubicación, Referencia y Condiciones) como una única
+ * solicitud -- reemplaza cualquier solicitud de modificación pendiente anterior
+ * de la misma reserva, para que nunca haya dos abiertas a la vez. */
+export async function proposeModification(input: {
+  bookingId: string;
+  previous: ModificationBundle;
+  next: ModificationBundle;
+  message?: string;
+  proposedBy: string;
+  proposedRole: NegotiationRole;
+}): Promise<NegotiationEvent> {
+  if (!(input.next.price > 0)) {
+    throw new Error('El precio debe ser mayor a 0.');
+  }
+  if (input.next.duration_hours != null && !(input.next.duration_hours > 0)) {
+    throw new Error('La duración debe ser mayor a 0 horas.');
+  }
+
+  const { error: supersedeError } = await supabase
+    .from('booking_negotiation_events')
+    .update({ status: 'superseded', resolved_at: new Date().toISOString() })
+    .eq('booking_id', input.bookingId)
+    .eq('field', 'modification')
+    .eq('status', 'pending');
+  if (supersedeError) throw supersedeError;
+
+  const { data, error } = await supabase
+    .from('booking_negotiation_events')
+    .insert({
+      booking_id: input.bookingId,
+      field: 'modification',
+      old_value: JSON.stringify(input.previous),
+      new_value: JSON.stringify(input.next),
+      message: input.message?.trim() || null,
+      proposed_by: input.proposedBy,
+      proposed_role: input.proposedRole,
+      status: 'pending',
+      after_signature: true,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as NegotiationEvent;
+}
+
+async function applyModificationBundle(bookingId: string, bundle: ModificationBundle) {
+  const { error } = await supabase
+    .from('bookings')
+    .update({
+      total: bundle.price,
+      duration_hours: bundle.duration_hours,
+      start_time: bundle.start_time,
+      equipment: bundle.equipment,
+      venue: bundle.venue,
+      venue_reference: bundle.venue_reference,
+      notes: bundle.notes,
+    })
+    .eq('id', bookingId);
+  if (error) throw error;
+}
+
+/** Propone un cambio puntual de un solo campo — modelo antiguo, ya no se usa desde
+ * la pantalla de contrato (ver proposeModification) pero se mantiene por si hay
+ * filas históricas o llamadas externas. */
 export async function proposeChange(input: {
   bookingId: string;
   field: NegotiableField;
@@ -244,6 +340,9 @@ export async function acceptNegotiationEvent(event: NegotiationEvent): Promise<v
   if (event.field === 'proposal') {
     const bundle = getProposalBundle(event);
     if (bundle) await applyBundle(event.booking_id, bundle);
+  } else if (event.field === 'modification') {
+    const bundle = getModificationBundle(event);
+    if (bundle) await applyModificationBundle(event.booking_id, bundle);
   } else {
     await applySingleField(event.booking_id, event.field, event.new_value);
   }

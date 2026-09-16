@@ -50,7 +50,7 @@ export const CONTRACT_CLAUSES: ContractClause[] = [
   {
     number: 8,
     title: 'Modificaciones',
-    body: 'Una vez firmado por ambas partes, este contrato no puede editarse directamente. Cualquier cambio debe solicitarse formalmente desde la plataforma ("Solicitar modificación del contrato"), requiere la aprobación expresa de la otra parte, y genera una nueva versión de este documento que ambas partes deben volver a firmar. Las versiones anteriores quedan guardadas como historial y nunca se pierden.',
+    body: 'Una vez firmado por ambas partes, este contrato no puede editarse directamente. Cualquier cambio debe solicitarse formalmente desde la plataforma ("Solicitar modificación del contrato"), requiere la aprobación expresa de la otra parte, y genera una nueva versión de este documento que ambas partes deben volver a firmar. Las versiones anteriores quedan guardadas como historial y nunca se pierden. Se recomienda solicitar cualquier modificación con una anticipación mínima de 48 horas antes de la fecha del evento.',
   },
   {
     number: 9,
