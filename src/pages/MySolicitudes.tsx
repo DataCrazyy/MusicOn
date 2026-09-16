@@ -17,34 +17,8 @@ import { listReviewsByClient, type Review } from '@/lib/reviews';
 import ReviewForm from '@/components/ReviewForm';
 import StarRating from '@/components/StarRating';
 import { listUnreadBookingIds } from '@/lib/messages';
-import BookingMessages from '@/components/BookingMessages';
 import EmptyState from '@/components/EmptyState';
 import { STATUS_LABELS } from '@/lib/bookingStatus';
-
-function ChatButton({
-  active,
-  unread,
-  onClick,
-}: {
-  active: boolean;
-  unread: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      title={active ? 'Cerrar consulta' : 'Consultar'}
-      className={`relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border transition ${
-        active ? 'border-lime bg-lime/10 text-lime' : 'border-line text-ink-muted hover:border-lime/40 hover:text-lime'
-      }`}
-    >
-      <MessageCircle className="h-4 w-4" />
-      {unread && !active && (
-        <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-bg-surface bg-lime" />
-      )}
-    </button>
-  );
-}
 
 export default function MySolicitudes() {
   const { user } = useAuth();
@@ -66,9 +40,6 @@ export default function MySolicitudes() {
     eventDate: string;
   } | null>(null);
   const [responseMsg, setResponseMsg] = useState('');
-
-  // id of the booking whose message thread ("Consultar") is currently open
-  const [openThread, setOpenThread] = useState<string | null>(null);
 
   async function load() {
     if (!user) return;
@@ -130,18 +101,6 @@ export default function MySolicitudes() {
     }
   }
 
-  function toggleThread(bookingId: string) {
-    setOpenThread((prev) => (prev === bookingId ? null : bookingId));
-  }
-
-  function clearUnread(bookingId: string) {
-    setUnreadIds((prev) => {
-      if (!prev.has(bookingId)) return prev;
-      const next = new Set(prev);
-      next.delete(bookingId);
-      return next;
-    });
-  }
 
   if (!user) {
     return (
@@ -262,23 +221,18 @@ export default function MySolicitudes() {
                       <span className={`rounded-pill px-3 py-1 text-xs font-semibold ${STATUS_LABELS[b.status].className}`}>
                         {STATUS_LABELS[b.status].label}
                       </span>
-                      {b.artist?.owner_id && (
-                        <ChatButton
-                          active={openThread === b.id}
-                          unread={unreadIds.has(b.id)}
-                          onClick={() => toggleThread(b.id)}
-                        />
-                      )}
+                      <Link
+                        to={`/chat?b=${b.id}`}
+                        title="Ir al chat de esta solicitud"
+                        className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-line text-ink-muted transition hover:border-lime/40 hover:text-lime"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        {unreadIds.has(b.id) && (
+                          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-bg-surface bg-lime" />
+                        )}
+                      </Link>
                     </div>
                   </div>
-
-                  {openThread === b.id && b.artist?.owner_id && (
-                    <BookingMessages
-                      bookingId={b.id}
-                      recipientId={b.artist.owner_id}
-                      onRead={() => clearUnread(b.id)}
-                    />
-                  )}
                 </div>
               ))}
             </div>
@@ -362,21 +316,18 @@ export default function MySolicitudes() {
                             </span>
                           )
                         )}
-                        <ChatButton
-                          active={openThread === b.id}
-                          unread={unreadIds.has(b.id)}
-                          onClick={() => toggleThread(b.id)}
-                        />
+                        <Link
+                          to={`/chat?b=${b.id}`}
+                          title="Ir al chat de esta solicitud"
+                          className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-line text-ink-muted transition hover:border-lime/40 hover:text-lime"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                          {unreadIds.has(b.id) && (
+                            <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-bg-surface bg-lime" />
+                          )}
+                        </Link>
                       </div>
                     </div>
-
-                    {openThread === b.id && (
-                      <BookingMessages
-                        bookingId={b.id}
-                        recipientId={b.client_id}
-                        onRead={() => clearUnread(b.id)}
-                      />
-                    )}
 
                     {respondingTo?.id === b.id && (
                       <div className="rounded-lg border border-line bg-bg-raised p-3">

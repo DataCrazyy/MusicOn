@@ -18,6 +18,8 @@ export type BookingWithArtist = {
   status: BookingStatus;
   event_lat: number | null;
   event_lng: number | null;
+  venue_reference: string | null;
+  duration_hours: number | null;
   paid_at: string | null;
   created_at: string;
   artist: {
@@ -49,6 +51,8 @@ export type BookingWithClient = {
   subtotal: number;
   total: number;
   status: BookingStatus;
+  venue_reference: string | null;
+  duration_hours: number | null;
   created_at: string;
   client: { full_name: string | null } | null;
 };
@@ -58,8 +62,11 @@ export type NewBookingInput = {
   event_date: string;
   start_time: string;
   venue: string;
+  venue_reference: string;
   event_lat: number | null;
   event_lng: number | null;
+  /** Duración estimada del show en horas — solo se pide cuando aplica al tipo de evento. */
+  duration_hours: number | null;
   guest_range: string;
   notes: string;
 };
@@ -79,8 +86,10 @@ export async function createBookingRequest(
       event_date: input.event_date,
       start_time: input.start_time,
       venue: input.venue,
+      venue_reference: input.venue_reference || null,
       event_lat: input.event_lat,
       event_lng: input.event_lng,
+      duration_hours: input.duration_hours,
       guest_range: input.guest_range,
       notes: input.notes,
       subtotal: referencePrice,
@@ -127,11 +136,6 @@ export async function listBookingsForArtist(artistId: string): Promise<BookingWi
 
   if (error) throw error;
   return data as unknown as BookingWithClient[];
-}
-
-export async function proposeNewPrice(bookingId: string, total: number) {
-  const { error } = await supabase.from('bookings').update({ total }).eq('id', bookingId);
-  if (error) throw error;
 }
 
 export async function markBookingCompleted(bookingId: string) {

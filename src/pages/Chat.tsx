@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Loader2, MessageCircle, ArrowLeft, Check, X, FileSignature } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { getArtistByOwner, addBlockedDate } from '@/lib/artists';
@@ -14,7 +14,7 @@ import {
 import { STATUS_LABELS } from '@/lib/bookingStatus';
 import { listUnreadBookingIds } from '@/lib/messages';
 import BookingMessages from '@/components/BookingMessages';
-import PriceNegotiation from '@/components/PriceNegotiation';
+import NegotiationPanel from '@/components/NegotiationPanel';
 import EmptyState from '@/components/EmptyState';
 
 type Conversation = {
@@ -28,6 +28,12 @@ type Conversation = {
   isArtistSide: boolean;
   artistId: string;
   eventDate: string;
+  startTime: string | null;
+  durationHours: number | null;
+  venue: string | null;
+  venueReference: string | null;
+  guestRange: string | null;
+  notes: string | null;
   subtotal: number;
   total: number;
 };
@@ -46,6 +52,7 @@ const QUICK_REPLIES = [
 
 export default function Chat() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [unreadIds, setUnreadIds] = useState<Set<string>>(new Set());
@@ -77,6 +84,12 @@ export default function Chat() {
         isArtistSide: false,
         artistId: b.artist_id,
         eventDate: b.event_date,
+        startTime: b.start_time,
+        durationHours: b.duration_hours,
+        venue: b.venue,
+        venueReference: b.venue_reference,
+        guestRange: b.guest_range,
+        notes: b.notes,
         subtotal: b.subtotal,
         total: b.total,
       }));
@@ -93,6 +106,12 @@ export default function Chat() {
         isArtistSide: true,
         artistId: b.artist_id,
         eventDate: b.event_date,
+        startTime: b.start_time,
+        durationHours: b.duration_hours,
+        venue: b.venue,
+        venueReference: b.venue_reference,
+        guestRange: b.guest_range,
+        notes: b.notes,
         subtotal: b.subtotal,
         total: b.total,
       }));
@@ -100,7 +119,11 @@ export default function Chat() {
     const all = [...clientSide, ...artistSide];
     setConversations(all);
     setUnreadIds(unread);
-    setOpenId((prev) => prev ?? (all[0]?.bookingId ?? null));
+    const requested = searchParams.get('b');
+    setOpenId((prev) => {
+      if (requested && all.some((c) => c.bookingId === requested)) return requested;
+      return prev ?? (all[0]?.bookingId ?? null);
+    });
     setLoading(false);
   }
 
@@ -239,11 +262,22 @@ export default function Chat() {
                 </span>
               </div>
 
-              {active.status === 'pending' && (
-                <PriceNegotiation
+              {(active.status === 'pending' || active.status === 'confirmed') && user && (
+                <NegotiationPanel
                   bookingId={active.bookingId}
-                  subtotal={active.subtotal}
-                  total={active.total}
+                  userId={user.id}
+                  myRole={active.isArtistSide ? 'artist' : 'client'}
+                  otherPartyName={active.name}
+                  current={{
+                    eventDate: active.eventDate,
+                    startTime: active.startTime,
+                    durationHours: active.durationHours,
+                    venue: active.venue,
+                    venueReference: active.venueReference,
+                    guestRange: active.guestRange,
+                    total: active.total,
+                    notes: active.notes,
+                  }}
                   onUpdated={load}
                 />
               )}

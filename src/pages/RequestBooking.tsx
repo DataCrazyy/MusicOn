@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Loader2, CheckCircle2, HelpCircle } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { getArtistById, type DbArtist } from '@/lib/artists';
-import { formatPrice } from '@/lib/format';
+import { formatPrice, computeEndTime } from '@/lib/format';
 import { createBookingRequest } from '@/lib/bookings';
 import AvailabilityCalendar from '@/components/AvailabilityCalendar';
 import AddressMapField from '@/components/AddressMapField';
@@ -32,8 +32,10 @@ export default function RequestBooking() {
   const [eventDate, setEventDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [venue, setVenue] = useState('');
+  const [venueReference, setVenueReference] = useState('');
   const [eventLat, setEventLat] = useState<number | null>(null);
   const [eventLng, setEventLng] = useState<number | null>(null);
+  const [durationHours, setDurationHours] = useState('');
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [guestRange, setGuestRange] = useState(GUEST_RANGES[0]);
   const [notes, setNotes] = useState('');
@@ -67,6 +69,10 @@ export default function RequestBooking() {
       setError('Elige una fecha en el calendario.');
       return;
     }
+    if (!durationHours || Number(durationHours) <= 0) {
+      setError('Indica la duración estimada del show en horas.');
+      return;
+    }
     if (isDateOccupied || isWeeklyOff) {
       setError(`Esa fecha ya no está disponible para ${artist.name}. Elige otra en el calendario.`);
       return;
@@ -79,8 +85,10 @@ export default function RequestBooking() {
         event_date: eventDate,
         start_time: startTime,
         venue,
+        venue_reference: venueReference,
         event_lat: eventLat,
         event_lng: eventLng,
+        duration_hours: durationHours ? Number(durationHours) : null,
         guest_range: guestRange,
         notes,
       });
@@ -238,6 +246,39 @@ export default function RequestBooking() {
           />
 
           <div>
+            <label className="mb-1 block text-xs font-semibold text-ink-muted">
+              Referencia adicional (opcional)
+            </label>
+            <input
+              value={venueReference}
+              onChange={(e) => setVenueReference(e.target.value)}
+              className="w-full rounded-lg border border-line bg-bg-surface px-3 py-2.5 text-sm text-ink-primary outline-none focus:border-lime"
+              placeholder="Ej: Condominio Las Palmas, bloque B, salón de eventos"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-ink-muted">
+              Duración estimada del show (horas)
+            </label>
+            <input
+              required
+              type="number"
+              min={1}
+              step={0.5}
+              value={durationHours}
+              onChange={(e) => setDurationHours(e.target.value)}
+              className="w-full rounded-lg border border-line bg-bg-surface px-3 py-2.5 text-sm text-ink-primary outline-none focus:border-lime"
+              placeholder="Ej: 3"
+            />
+            {startTime && durationHours && Number(durationHours) > 0 && (
+              <p className="mt-1 text-xs text-ink-muted">
+                Hora estimada de finalización: {computeEndTime(startTime, Number(durationHours))}
+              </p>
+            )}
+          </div>
+
+          <div>
             <label className="mb-1 block text-xs font-semibold text-ink-muted">Cantidad de invitados</label>
             <select
               value={guestRange}
@@ -276,7 +317,16 @@ export default function RequestBooking() {
               </div>
               <div className="flex justify-between">
                 <dt className="text-ink-muted">Horario</dt>
-                <dd className="text-ink-primary">{startTime || '—'}</dd>
+                <dd className="text-ink-primary">
+                  {startTime || '—'}
+                  {startTime && durationHours && Number(durationHours) > 0
+                    ? ` – ${computeEndTime(startTime, Number(durationHours))}`
+                    : ''}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-ink-muted">Duración</dt>
+                <dd className="text-ink-primary">{durationHours ? `${durationHours} horas` : '—'}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-ink-muted">Invitados</dt>
@@ -303,7 +353,7 @@ export default function RequestBooking() {
 
           <button
             type="submit"
-            disabled={submitting || !eventDate || isDateBlocked}
+            disabled={submitting || !eventDate || isDateBlocked || !durationHours}
             className="flex w-full items-center justify-center gap-2 rounded-pill bg-lime px-4 py-3 text-sm font-bold text-bg-base transition hover:bg-lime-dark disabled:opacity-60"
           >
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
