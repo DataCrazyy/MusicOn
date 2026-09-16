@@ -13,6 +13,12 @@ export type Step = {
 type Props = {
   steps: Step[];
   currentIndex?: number;
+  /** 'timeline' (por defecto): lista vertical detallada en mobile, pensada para
+   * flujos con estado por paso (reserva/negociacion/contrato). 'compact': en
+   * mobile muestra solo una barra de progreso + "Paso X de N", pensado para
+   * wizards lineales simples (ej. el buscador guiado de Explorar) donde una
+   * lista completa de todos los pasos es ruido innecesario. */
+  variant?: 'timeline' | 'compact';
 };
 
 function statusFor(step: Step, index: number, currentIndex: number | undefined): StepStatus {
@@ -30,16 +36,21 @@ const STATUS_WORD: Record<StepStatus, string> = {
 };
 
 /**
- * Indicador de progreso reutilizable. En mobile se muestra como lista vertical, para
- * que ningún texto quede cortado sin importar cuántos pasos haya o qué tan largo sea
- * el nombre de cada uno (60). En escritorio/tablet se muestra como barra horizontal
- * con la etiqueta completa debajo de cada círculo — sin truncar ni reducir la fuente
- * para forzar que quepa todo.
+ * Indicador de progreso reutilizable. En escritorio/tablet siempre se muestra como
+ * barra horizontal con la etiqueta completa debajo de cada círculo — sin truncar ni
+ * reducir la fuente para forzar que quepa todo. En mobile hay dos variantes: 'timeline'
+ * (lista vertical con estado por paso, para que ningún texto quede cortado sin importar
+ * cuántos pasos haya) y 'compact' (barra de progreso + "Paso X de N", para wizards
+ * lineales donde listar todos los pasos es ruido).
  */
-export default function Stepper({ steps, currentIndex }: Props) {
+export default function Stepper({ steps, currentIndex, variant = 'timeline' }: Props) {
   const total = steps.length;
   const doneCount = steps.filter((s, i) => statusFor(s, i, currentIndex) === 'done').length;
   const progressPct = total > 1 ? (doneCount / (total - 1)) * 100 : 0;
+  const activeStepIndex = Math.max(
+    0,
+    currentIndex ?? steps.findIndex((s, i) => statusFor(s, i, currentIndex) === 'active')
+  );
 
   return (
     <div className="w-full">
@@ -80,8 +91,26 @@ export default function Stepper({ steps, currentIndex }: Props) {
         </div>
       </div>
 
-      {/* Mobile: lista vertical con número, etiqueta completa y glifo + palabra de
-          estado — formato explícito pedido para que el texto nunca se corte. */}
+      {/* Mobile compacto: barra de progreso + "Paso X de N" y la etiqueta del paso
+          activo — evita la lista larga en wizards lineales simples. */}
+      {variant === 'compact' && (
+        <div className="sm:hidden">
+          <div className="relative mb-2 h-1 w-full overflow-hidden rounded-full bg-line">
+            <div
+              className="absolute inset-y-0 left-0 rounded-full bg-lime transition-all"
+              style={{ width: `${Math.max(0, Math.min(100, progressPct))}%` }}
+            />
+          </div>
+          <p className="text-center text-xs font-semibold text-ink-muted">
+            Paso {activeStepIndex + 1} de {total} ·{' '}
+            <span className="text-ink-primary">{steps[activeStepIndex]?.label}</span>
+          </p>
+        </div>
+      )}
+
+      {/* Mobile detallado: lista vertical con número, etiqueta completa y glifo + palabra
+          de estado — formato explícito pedido para que el texto nunca se corte. */}
+      {variant === 'timeline' && (
       <ul className="space-y-2.5 sm:hidden">
         {steps.map((step, i) => {
           const status = statusFor(step, i, currentIndex);
@@ -115,6 +144,7 @@ export default function Stepper({ steps, currentIndex }: Props) {
           );
         })}
       </ul>
+      )}
     </div>
   );
 }

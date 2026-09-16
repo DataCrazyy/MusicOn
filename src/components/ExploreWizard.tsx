@@ -64,7 +64,7 @@ export default function ExploreWizard({
   return (
     <div className="mx-auto max-w-2xl">
       <div className="mb-6">
-        <Stepper steps={STEPS} currentIndex={step} />
+        <Stepper steps={STEPS} currentIndex={step} variant="compact" />
       </div>
 
       <div className="rounded-card border border-line bg-bg-surface p-6 sm:p-8">
