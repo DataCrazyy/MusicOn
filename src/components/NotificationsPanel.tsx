@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, X, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
-import {
 import { createPortal } from 'react-dom';
+import {
   listNotifications,
   markNotificationRead,
   markAllNotificationsRead,
