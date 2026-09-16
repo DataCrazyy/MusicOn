@@ -71,7 +71,12 @@ export default function AddressMapField({ address, onAddressChange, lat, lng, on
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${rLat}&lon=${rLng}`
       );
       const data = await res.json();
-      setDetectedAddress(data?.display_name ?? null);
+      const found = data?.display_name ?? null;
+      setDetectedAddress(found);
+      // 68: si el usuario ya eligió el punto en el mapa (arrastrando el marcador o
+      // usando su ubicación actual), la dirección obtenida alimenta directamente el
+      // mismo campo "Ubicación del evento" — nunca se le pide que la vuelva a escribir.
+      if (found) onAddressChange(found);
     } catch {
       setDetectedAddress(null);
     } finally {
@@ -288,7 +293,7 @@ export default function AddressMapField({ address, onAddressChange, lat, lng, on
               </span>
             ) : (
               <span className="truncate">
-                {detectedAddress ? `Dirección detectada: ${detectedAddress}` : 'Ubicación confirmada en el mapa'}
+                {detectedAddress ? `Ubicación seleccionada: ${detectedAddress}` : 'Ubicación confirmada en el mapa'}
               </span>
             )}
           </div>

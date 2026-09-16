@@ -19,7 +19,7 @@ type AuthContextValue = {
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (redirectPath?: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
 
@@ -72,10 +72,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }
 
-  async function signInWithGoogle() {
+  async function signInWithGoogle(redirectPath?: string) {
+    // 67: si hay una ruta pendiente (perfil de artista, reserva, solicitud...) el
+    // usuario vuelve directo ahí después de autenticarse con Google, en vez de
+    // siempre terminar en Solicitudes.
+    const path = redirectPath && redirectPath !== '/login' ? redirectPath : '/solicitudes';
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + '/solicitudes' },
+      options: { redirectTo: window.location.origin + path },
     });
   }
 

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Music2, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
+import { peekIntendedPath, takeIntendedPath } from '@/lib/authRedirect';
 
 type Mode = 'login' | 'signup';
 
@@ -9,7 +10,12 @@ export default function Login() {
   const { signIn, signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as { from?: Location })?.from?.pathname || '/solicitudes';
+  // 67: sessionStorage es la fuente mas confiable (sobrevive un redirect completo de
+  // pagina, como el de Google OAuth) — el state de React Router queda como respaldo
+  // por si algo llego aca sin pasar por RequireAuth.
+  const stateFrom = (location.state as { from?: Location })?.from;
+  const fromPath = stateFrom ? stateFrom.pathname + stateFrom.search : null;
+  const from = peekIntendedPath() || fromPath || '/solicitudes';
 
   const [mode, setMode] = useState<Mode>('login');
   const [fullName, setFullName] = useState('');
@@ -22,7 +28,7 @@ export default function Login() {
 
   async function handleGoogle() {
     setGoogleLoading(true);
-    await signInWithGoogle();
+    await signInWithGoogle(from);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -47,6 +53,7 @@ export default function Login() {
       return;
     }
 
+    takeIntendedPath();
     navigate(from, { replace: true });
   }
 

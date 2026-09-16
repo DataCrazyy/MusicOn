@@ -306,7 +306,10 @@ export default function Chat() {
               )}
 
               {showDetails && (active.status === 'pending' || active.status === 'confirmed') && (
-                <div className="mt-4">
+                // 70/71: contenido con scroll propio y acotado — si el formulario de
+                // negociación crece (modo edición/revisión), nunca queda cortado ni
+                // atrapado detrás de un contenedor sin scroll.
+                <div className="mt-4 max-h-[55vh] overflow-y-auto pr-1">
                   <Stepper
                     steps={computeFlowSteps({
                       bookingStatus: active.status,
@@ -315,29 +318,28 @@ export default function Chat() {
                       isPaidAndConfirmed: false,
                     })}
                   />
+                  {user && (
+                    <NegotiationPanel
+                      bookingId={active.bookingId}
+                      userId={user.id}
+                      myRole={active.isArtistSide ? 'artist' : 'client'}
+                      otherPartyName={active.name}
+                      otherPartyUserId={active.recipientId}
+                      current={{
+                        eventDate: active.eventDate,
+                        startTime: active.startTime,
+                        durationHours: active.durationHours,
+                        venue: active.venue,
+                        venueReference: active.venueReference,
+                        guestRange: active.guestRange,
+                        total: active.total,
+                        equipment: active.equipment,
+                        notes: active.notes,
+                      }}
+                      onUpdated={load}
+                    />
+                  )}
                 </div>
-              )}
-
-              {showDetails && (active.status === 'pending' || active.status === 'confirmed') && user && (
-                <NegotiationPanel
-                  bookingId={active.bookingId}
-                  userId={user.id}
-                  myRole={active.isArtistSide ? 'artist' : 'client'}
-                  otherPartyName={active.name}
-                  otherPartyUserId={active.recipientId}
-                  current={{
-                    eventDate: active.eventDate,
-                    startTime: active.startTime,
-                    durationHours: active.durationHours,
-                    venue: active.venue,
-                    venueReference: active.venueReference,
-                    guestRange: active.guestRange,
-                    total: active.total,
-                    equipment: active.equipment,
-                    notes: active.notes,
-                  }}
-                  onUpdated={load}
-                />
               )}
 
               {active.status === 'confirmed' && !active.isArtistSide && (
