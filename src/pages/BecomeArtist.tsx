@@ -1,6 +1,6 @@
 import { useEffect, useState, type ChangeEvent, type DragEvent, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Loader2, Sparkles, Pencil, ImagePlus, X, Plus, Music, Youtube } from 'lucide-react';
+import { Loader2, Sparkles, Pencil, ImagePlus, X, Plus, Music, Music2, Youtube, Instagram, Facebook } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { setProfileRole } from '@/lib/profile';
 import {
@@ -24,6 +24,16 @@ const WEEKDAY_OPTIONS = [
   { value: 5, label: 'Vie' },
   { value: 6, label: 'Sáb' },
   { value: 0, label: 'Dom' },
+];
+
+const EQUIPMENT_OPTIONS = [
+  'Equipo de sonido',
+  'Parlantes',
+  'Micrófonos',
+  'Consola de sonido',
+  'Luces',
+  'Instrumentos',
+  'Otro',
 ];
 
 export default function BecomeArtist() {
@@ -55,6 +65,12 @@ export default function BecomeArtist() {
   const [galleryError, setGalleryError] = useState<string | null>(null);
   const [spotifyUrl, setSpotifyUrl] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [instagramUrl, setInstagramUrl] = useState('');
+  const [tiktokUrl, setTiktokUrl] = useState('');
+  const [facebookUrl, setFacebookUrl] = useState('');
+  const [equipment, setEquipment] = useState<string[]>([]);
+  const [equipmentOther, setEquipmentOther] = useState('');
+  const [genreOther, setGenreOther] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,7 +83,13 @@ export default function BecomeArtist() {
 
   function loadIntoForm(artist: DbArtist | null) {
     setName(artist?.name ?? '');
-    setGenre(artist?.genre ?? ARTIST_GENRES[0]);
+    if (artist && artist.genre && !ARTIST_GENRES.includes(artist.genre)) {
+      setGenre('Otro');
+      setGenreOther(artist.genre);
+    } else {
+      setGenre(artist?.genre ?? ARTIST_GENRES[0]);
+      setGenreOther('');
+    }
     setCity(artist?.city ?? BOLIVIA_CITIES[0]);
     setBio(artist?.bio ?? '');
     setPhotoPreview(artist?.photo_url ?? null);
@@ -83,6 +105,11 @@ export default function BecomeArtist() {
     setGalleryUrls(artist?.gallery_urls ?? []);
     setSpotifyUrl(artist?.spotify_url ?? '');
     setYoutubeUrl(artist?.youtube_url ?? '');
+    setInstagramUrl(artist?.instagram_url ?? '');
+    setTiktokUrl(artist?.tiktok_url ?? '');
+    setFacebookUrl(artist?.facebook_url ?? '');
+    setEquipment(artist?.equipment ?? []);
+    setEquipmentOther(artist?.equipment_other ?? '');
   }
 
   function startEditing() {
@@ -134,6 +161,12 @@ export default function BecomeArtist() {
     );
   }
 
+  function toggleEquipment(item: string) {
+    setEquipment((prev) =>
+      prev.includes(item) ? prev.filter((e) => e !== item) : [...prev, item]
+    );
+  }
+
   async function handleGalleryFiles(files: FileList | null) {
     if (!files || !user) return;
     setGalleryError(null);
@@ -160,7 +193,7 @@ export default function BecomeArtist() {
         setGalleryUrls((prev) => [...prev, url]);
       }
     } catch (err) {
-      setGalleryError(err instanceof Error ? err.message : 'No pudimos subir alguna foto. Probá de nuevo.');
+      setGalleryError(err instanceof Error ? err.message : 'No pudimos subir alguna foto. Prueba de nuevo.');
     } finally {
       setGalleryUploading(false);
     }
@@ -174,6 +207,20 @@ export default function BecomeArtist() {
     e.preventDefault();
     if (!user) return;
     setError(null);
+
+    if (genre === 'Otro' && !genreOther.trim()) {
+      setError('Especifica tu género musical.');
+      return;
+    }
+    if (equipment.length === 0) {
+      setError('Selecciona al menos un equipo disponible.');
+      return;
+    }
+    if (equipment.includes('Otro') && !equipmentOther.trim()) {
+      setError('Especifica qué otro equipamiento tienes.');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -189,7 +236,7 @@ export default function BecomeArtist() {
 
       const input = {
         name,
-        genre,
+        genre: genre === 'Otro' ? genreOther.trim() : genre,
         city,
         bio,
         photo_url: photoUrl,
@@ -207,6 +254,11 @@ export default function BecomeArtist() {
         gallery_urls: galleryUrls,
         spotify_url: spotifyUrl.trim(),
         youtube_url: youtubeUrl.trim(),
+        instagram_url: instagramUrl.trim(),
+        tiktok_url: tiktokUrl.trim(),
+        facebook_url: facebookUrl.trim(),
+        equipment,
+        equipment_other: equipment.includes('Otro') ? equipmentOther.trim() : '',
       };
 
       const artist = existing ? await updateArtist(existing.id, input) : await createArtist(user.id, input);
@@ -222,7 +274,7 @@ export default function BecomeArtist() {
           ? err.message
           : typeof err === 'string'
             ? err
-            : 'No pudimos guardar tu perfil. Revisá tu conexión e intentá de nuevo.';
+            : 'No pudimos guardar tu perfil. Revisa tu conexión e intenta de nuevo.';
       setError(message);
     } finally {
       setSubmitting(false);
@@ -267,11 +319,11 @@ export default function BecomeArtist() {
     <div className="min-h-screen bg-bg-base py-8 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-xl">
         <h1 className="mb-2 font-display text-3xl font-bold text-ink-primary">
-          {existing ? 'Editar tu perfil de artista' : 'Creá tu perfil de artista'}
+          {existing ? 'Editar tu perfil de artista' : 'Crea tu perfil de artista'}
         </h1>
         <p className="mb-8 text-sm text-ink-muted">
           {existing
-            ? 'Actualizá tus datos cuando quieras.'
+            ? 'Actualiza tus datos cuando quieras.'
             : 'Completa tus datos para que la gente te pueda encontrar y contratar en MusicOn.'}
         </p>
 
@@ -314,7 +366,7 @@ export default function BecomeArtist() {
                     <ImagePlus className="h-5 w-5 text-ink-muted" />
                   </div>
                   <span className="text-sm font-semibold text-ink-primary">Arrastra una foto aquí</span>
-                  <span className="text-xs text-ink-muted">o hacé clic para elegir un archivo</span>
+                  <span className="text-xs text-ink-muted">o haz clic para elegir un archivo</span>
                   <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
                 </label>
               )}
@@ -366,6 +418,21 @@ export default function BecomeArtist() {
             </div>
           </div>
 
+          {genre === 'Otro' && (
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-ink-muted">
+                Especifica tu género musical
+              </label>
+              <input
+                required
+                value={genreOther}
+                onChange={(e) => setGenreOther(e.target.value)}
+                className="w-full rounded-lg border border-line bg-bg-surface px-3 py-2.5 text-sm text-ink-primary outline-none focus:border-lime"
+                placeholder="Ej: Reggaetón, Trova, Fusión andina"
+              />
+            </div>
+          )}
+
           <div>
             <div className="mb-1 flex items-center justify-between">
               <label className="block text-xs font-semibold text-ink-muted">Bio</label>
@@ -386,7 +453,7 @@ export default function BecomeArtist() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-muted">Precio desde (USD)</label>
+              <label className="mb-1 block text-xs font-semibold text-ink-muted">Precio desde (Bs)</label>
               <input
                 required
                 type="number"
@@ -453,8 +520,40 @@ export default function BecomeArtist() {
           </div>
 
           <div>
+            <label className="mb-2 block text-xs font-semibold text-ink-muted">Equipamiento disponible</label>
+            <div className="flex flex-wrap gap-2">
+              {EQUIPMENT_OPTIONS.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => toggleEquipment(item)}
+                  className={`rounded-pill border px-3 py-1.5 text-xs font-semibold transition ${
+                    equipment.includes(item)
+                      ? 'border-lime bg-lime/10 text-lime'
+                      : 'border-line text-ink-primary hover:border-lime/40'
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+            {equipment.includes('Otro') && (
+              <input
+                required
+                value={equipmentOther}
+                onChange={(e) => setEquipmentOther(e.target.value)}
+                className="mt-2 w-full rounded-lg border border-line bg-bg-surface px-3 py-2.5 text-sm text-ink-primary outline-none focus:border-lime"
+                placeholder="Especifica qué otro equipamiento tienes"
+              />
+            )}
+            <p className="mt-1 text-xs text-ink-muted">
+              Selecciona todo el equipo que llevas incluido en tu servicio.
+            </p>
+          </div>
+
+          <div>
             <label className="mb-2 block text-xs font-semibold text-ink-muted">
-              Días de la semana que no atendés
+              Días de la semana que no atiendes
             </label>
             <div className="flex flex-wrap gap-2">
               {WEEKDAY_OPTIONS.map((d) => (
@@ -530,7 +629,7 @@ export default function BecomeArtist() {
               )}
             </div>
             <p className="mt-2 text-xs text-ink-muted">
-              Mostrale a la gente fotos de tus shows anteriores. Hasta {MAX_GALLERY_PHOTOS} fotos.
+              Muéstrale a la gente fotos de tus shows anteriores. Hasta {MAX_GALLERY_PHOTOS} fotos.
             </p>
             {galleryError && <p className="mt-1 text-xs text-red-400">{galleryError}</p>}
           </div>
@@ -556,6 +655,42 @@ export default function BecomeArtist() {
                 onChange={(e) => setYoutubeUrl(e.target.value)}
                 className="w-full rounded-lg border border-line bg-bg-surface px-3 py-2.5 text-sm text-ink-primary outline-none focus:border-lime"
                 placeholder="https://youtube.com/watch?v=..."
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <label className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-ink-muted">
+                <Instagram className="h-3.5 w-3.5" /> Instagram (opcional)
+              </label>
+              <input
+                value={instagramUrl}
+                onChange={(e) => setInstagramUrl(e.target.value)}
+                className="w-full rounded-lg border border-line bg-bg-surface px-3 py-2.5 text-sm text-ink-primary outline-none focus:border-lime"
+                placeholder="https://instagram.com/..."
+              />
+            </div>
+            <div>
+              <label className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-ink-muted">
+                <Music2 className="h-3.5 w-3.5" /> TikTok (opcional)
+              </label>
+              <input
+                value={tiktokUrl}
+                onChange={(e) => setTiktokUrl(e.target.value)}
+                className="w-full rounded-lg border border-line bg-bg-surface px-3 py-2.5 text-sm text-ink-primary outline-none focus:border-lime"
+                placeholder="https://tiktok.com/@..."
+              />
+            </div>
+            <div>
+              <label className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-ink-muted">
+                <Facebook className="h-3.5 w-3.5" /> Facebook (opcional)
+              </label>
+              <input
+                value={facebookUrl}
+                onChange={(e) => setFacebookUrl(e.target.value)}
+                className="w-full rounded-lg border border-line bg-bg-surface px-3 py-2.5 text-sm text-ink-primary outline-none focus:border-lime"
+                placeholder="https://facebook.com/..."
               />
             </div>
           </div>

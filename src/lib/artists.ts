@@ -21,6 +21,11 @@ export type DbArtist = {
   gallery_urls: string[];
   spotify_url: string | null;
   youtube_url: string | null;
+  equipment: string[];
+  equipment_other: string | null;
+  instagram_url: string | null;
+  tiktok_url: string | null;
+  facebook_url: string | null;
   created_at: string;
 };
 
@@ -41,6 +46,11 @@ export type ArtistInput = {
   gallery_urls: string[];
   spotify_url: string;
   youtube_url: string;
+  equipment: string[];
+  equipment_other: string;
+  instagram_url: string;
+  tiktok_url: string;
+  facebook_url: string;
 };
 
 export async function listArtists(): Promise<DbArtist[]> {

@@ -26,6 +26,7 @@ export default function RequestBooking() {
   const [loading, setLoading] = useState(true);
 
   const [eventType, setEventType] = useState(EVENT_TYPES[0]);
+  const [eventTypeOther, setEventTypeOther] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [venue, setVenue] = useState('');
@@ -53,6 +54,10 @@ export default function RequestBooking() {
     if (!user || !artist) return;
     setError(null);
 
+    if (eventType === 'Otro' && !eventTypeOther.trim()) {
+      setError('Especifica el tipo de evento.');
+      return;
+    }
     if (!eventDate) {
       setError('Elige una fecha en el calendario.');
       return;
@@ -65,7 +70,7 @@ export default function RequestBooking() {
     setSubmitting(true);
     try {
       await createBookingRequest(user.id, artist.id, artist.price_from, {
-        event_type: eventType,
+        event_type: eventType === 'Otro' ? eventTypeOther.trim() : eventType,
         event_date: eventDate,
         start_time: startTime,
         venue,
@@ -74,7 +79,7 @@ export default function RequestBooking() {
       });
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No pudimos enviar tu solicitud. Probá de nuevo.');
+      setError(err instanceof Error ? err.message : 'No pudimos enviar tu solicitud. Prueba de nuevo.');
     } finally {
       setSubmitting(false);
     }
@@ -161,6 +166,21 @@ export default function RequestBooking() {
               ))}
             </select>
           </div>
+
+          {eventType === 'Otro' && (
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-ink-muted">
+                Especifica el tipo de evento
+              </label>
+              <input
+                required
+                value={eventTypeOther}
+                onChange={(e) => setEventTypeOther(e.target.value)}
+                className="w-full rounded-lg border border-line bg-bg-surface px-3 py-2.5 text-sm text-ink-primary outline-none focus:border-lime"
+                placeholder="Ej: Aniversario, Show privado, Festival"
+              />
+            </div>
+          )}
 
           <div>
             <label className="mb-1 block text-xs font-semibold text-ink-muted">

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, MapPin, Users, Loader2 } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, MapPin, Users, Loader2, Instagram, Facebook, Music2, Wrench } from 'lucide-react';
 import { getArtistById, type DbArtist } from '@/lib/artists';
 import { formatPrice } from '@/lib/format';
 import { useAuth } from '@/lib/AuthContext';
@@ -84,6 +84,43 @@ export default function ArtistProfile() {
                     </span>
                   )}
                 </div>
+                {(artist.instagram_url || artist.tiktok_url || artist.facebook_url) && (
+                  <div className="mt-3 flex items-center gap-3">
+                    {artist.instagram_url && (
+                      <a
+                        href={artist.instagram_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-ink-muted transition hover:text-lime"
+                        aria-label="Instagram"
+                      >
+                        <Instagram className="h-5 w-5" />
+                      </a>
+                    )}
+                    {artist.tiktok_url && (
+                      <a
+                        href={artist.tiktok_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-ink-muted transition hover:text-lime"
+                        aria-label="TikTok"
+                      >
+                        <Music2 className="h-5 w-5" />
+                      </a>
+                    )}
+                    {artist.facebook_url && (
+                      <a
+                        href={artist.facebook_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-ink-muted transition hover:text-lime"
+                        aria-label="Facebook"
+                      >
+                        <Facebook className="h-5 w-5" />
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="text-right">
@@ -108,6 +145,24 @@ export default function ArtistProfile() {
                     {tag}
                   </span>
                 ))}
+              </div>
+            )}
+
+            {artist.equipment?.length > 0 && (
+              <div className="mt-6">
+                <h2 className="mb-2 flex items-center gap-1.5 font-display text-sm font-bold text-ink-primary">
+                  <Wrench className="h-4 w-4" /> Equipamiento incluido
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {artist.equipment.map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-pill border border-line px-3 py-1 text-xs text-ink-muted"
+                    >
+                      {item === 'Otro' && artist.equipment_other ? artist.equipment_other : item}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
