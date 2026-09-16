@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Music2, Compass, ClipboardList, MessageCircle, HelpCircle } from 'lucide-react';
+import { Music2, Compass, ClipboardList, MessageCircle, HelpCircle, LogIn } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useUnreadCount } from '@/lib/useUnreadCount';
 import HelpFaqModal from './HelpFaqModal';
@@ -104,20 +104,28 @@ export default function Navbar() {
           >
             <HelpCircle className="h-5 w-5" />
           </button>
-          <Link
-            to={user ? '/cuenta' : '/login'}
-            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-bg-raised text-sm font-bold text-ink-primary ring-1 ring-line transition hover:ring-lime"
-          >
-            {user ? (
-              profile?.avatar_url ? (
+          {user ? (
+            <Link
+              to="/cuenta"
+              className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-bg-raised text-sm font-bold text-ink-primary ring-1 ring-line transition hover:ring-lime"
+              title="Mi cuenta"
+            >
+              {profile?.avatar_url ? (
                 <img src={profile.avatar_url} alt="Mi cuenta" className="h-full w-full object-cover" />
               ) : (
                 initials
-              )
-            ) : (
-              '?'
-            )}
-          </Link>
+              )}
+            </Link>
+          ) : (
+            <Link
+              to="/login"
+              title="Iniciar sesión"
+              aria-label="Iniciar sesión"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-lime text-bg-base transition hover:bg-lime-dark"
+            >
+              <LogIn className="h-4 w-4" />
+            </Link>
+          )}
         </div>
       </div>
 
