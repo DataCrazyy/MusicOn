@@ -11,6 +11,9 @@ import {
   Calendar,
   Clock,
   Users,
+  Check,
+  X,
+  History,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { getBookingById, type BookingWithArtist } from '@/lib/bookings';
@@ -18,11 +21,22 @@ import { formatPrice } from '@/lib/format';
 import {
   buildContractTerms,
   ensureContract,
+  updateContractTerms,
   signContractAsClient,
   signContractAsArtist,
   markBookingPaidAndConfirmed,
+  applyPostSignatureChange,
   type Contract,
 } from '@/lib/contracts';
+import {
+  listNegotiationEvents,
+  proposeChange,
+  acceptNegotiationEvent,
+  rejectNegotiationEvent,
+  FIELD_LABELS,
+  type NegotiationEvent,
+  type NegotiableField,
+} from '@/lib/negotiation';
 import { STATUS_LABELS } from '@/lib/bookingStatus';
 
 export default function ContractPage() {
@@ -40,6 +54,13 @@ export default function ContractPage() {
   const [signing, setSigning] = useState(false);
   const [paying, setPaying] = useState(false);
 
+  const [events, setEvents] = useState<NegotiationEvent[]>([]);
+  const [showModForm, setShowModForm] = useState(false);
+  const [modField, setModField] = useState<NegotiableField>('event_date');
+  const [modValue, setModValue] = useState('');
+  const [modMessage, setModMessage] = useState('');
+  const [modSaving, setModSaving] = useState(false);
+
   const isClient = !!user && !!booking && booking.client_id === user.id;
   const isArtistOwner = !!user && !!booking && booking.artist?.owner_id === user.id;
 
@@ -52,9 +73,15 @@ export default function ContractPage() {
       setBooking(b);
       const clientName = b.client?.full_name || profile?.full_name || 'Cliente';
       const terms = buildContractTerms(b, clientName);
-      const c = await ensureContract(bookingId, terms);
+      let c = await ensureContract(bookingId, terms);
+      // Antes de la primera firma, mantenemos el contrato sincronizado si la negociación
+      // cambió algo (precio, fecha, duración, etc.) desde que se generó por última vez.
+      if (!c.artist_signed_name && !c.client_signed_name && c.terms !== terms) {
+        c = await updateContractTerms(c.id, terms);
+      }
       setContract(c);
       setFullName(profile?.full_name ?? '');
+      setEvents(await listNegotiationEvents(bookingId));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No pudimos cargar el contrato.');
     } finally {
@@ -95,6 +122,76 @@ export default function ContractPage() {
 
   function handleDownloadPdf() {
     window.print();
+  }
+
+  function fieldCurrentValue(field: NegotiableField): string {
+    if (!booking) return '';
+    switch (field) {
+      case 'price':
+        return String(booking.total);
+      case 'event_date':
+        return booking.event_date;
+      case 'start_time':
+        return booking.start_time ?? '';
+      case 'duration_hours':
+        return booking.duration_hours != null ? String(booking.duration_hours) : '';
+      case 'venue':
+        return booking.venue ?? '';
+      case 'guest_range':
+        return booking.guest_range ?? '';
+      case 'notes':
+        return booking.notes ?? '';
+    }
+  }
+
+  async function submitModification() {
+    if (!booking || !user || !modValue.trim()) return;
+    setModSaving(true);
+    try {
+      await proposeChange({
+        bookingId: booking.id,
+        field: modField,
+        oldValue: fieldCurrentValue(modField),
+        newValue: modValue.trim(),
+        message: modMessage.trim() || undefined,
+        proposedBy: user.id,
+        proposedRole: isClient ? 'client' : 'artist',
+        afterSignature: true,
+      });
+      setShowModForm(false);
+      setModValue('');
+      setModMessage('');
+      await load();
+    } finally {
+      setModSaving(false);
+    }
+  }
+
+  /** Al aprobar una modificación después de firmar: se aplica el nuevo valor a la
+   * reserva, y el contrato abre una nueva versión sin firmas — nunca se sobrescribe
+   * en silencio un contrato ya firmado. */
+  async function handleAcceptModification(event: NegotiationEvent) {
+    if (!booking || !contract) return;
+    setModSaving(true);
+    try {
+      await acceptNegotiationEvent(event);
+      const freshBooking = await getBookingById(booking.id);
+      const clientName = freshBooking.client?.full_name || profile?.full_name || 'Cliente';
+      await applyPostSignatureChange(contract, freshBooking, clientName);
+      await load();
+    } finally {
+      setModSaving(false);
+    }
+  }
+
+  async function handleRejectModification(event: NegotiationEvent) {
+    setModSaving(true);
+    try {
+      await rejectNegotiationEvent(event.id);
+      await load();
+    } finally {
+      setModSaving(false);
+    }
   }
 
   if (loading) {
@@ -149,10 +246,21 @@ export default function ContractPage() {
     );
   }
 
-  const mySignedName = isClient ? contract.client_signed_name : contract.artist_signed_name;
+  const artistSigned = !!contract.artist_signed_name;
+  const clientSigned = !!contract.client_signed_name;
   const isPaidAndConfirmed = booking.status === 'in_escrow' || booking.status === 'completed';
-  const canSign = !mySignedName && !isPaidAndConfirmed;
-  const canPay = isClient && !!contract.client_signed_name && !isPaidAndConfirmed;
+  // El artista firma primero: el cliente recién ve su propio formulario cuando el artista ya firmó.
+  const canSignAsArtist = isArtistOwner && !artistSigned && !isPaidAndConfirmed;
+  const canSignAsClient = isClient && artistSigned && !clientSigned && !isPaidAndConfirmed;
+  const canSign = canSignAsArtist || canSignAsClient;
+  const waitingOnArtistSignature = isClient && !artistSigned && !isPaidAndConfirmed;
+  const canPay = isClient && artistSigned && clientSigned && !isPaidAndConfirmed;
+  const pendingModification = events.find((e) => e.status === 'pending' && e.after_signature) ?? null;
+  const signatureStatusText = isPaidAndConfirmed
+    ? 'Contrato firmado por ambas partes'
+    : !artistSigned
+      ? 'Pendiente de firma del artista'
+      : 'Firmado por el artista — pendiente de firma del cliente';
 
   return (
     <div className="min-h-screen bg-bg-base py-8 px-4 sm:px-6 lg:px-8 print:bg-white print:py-0">
@@ -176,7 +284,13 @@ export default function ContractPage() {
           </div>
         )}
 
-        <h1 className="mb-1 font-display text-2xl font-bold text-ink-primary">Confirmar contratación</h1>
+        <div className="mb-1 flex items-center gap-2">
+          <h1 className="font-display text-2xl font-bold text-ink-primary">Confirmar contratación</h1>
+          <span className="rounded-pill border border-line px-2 py-0.5 text-[11px] font-semibold text-ink-muted">
+            Contrato v{contract.version}.0
+          </span>
+        </div>
+        <p className="mb-1 text-sm font-semibold text-ink-primary print:hidden">{signatureStatusText}</p>
         <p className="mb-6 text-sm text-ink-muted print:hidden">
           Revisa los datos, firma el contrato digital y confirma para cerrar el acuerdo con {booking.artist?.name}.
         </p>
@@ -233,10 +347,19 @@ export default function ContractPage() {
           </div>
         </div>
 
+        {/* Esperando que el artista firme primero */}
+        {waitingOnArtistSignature && (
+          <div className="mb-6 rounded-card border border-line bg-bg-surface p-5 text-sm text-ink-muted print:hidden">
+            Pendiente de firma del artista — cuando {booking.artist?.name} firme el contrato vas a poder revisarlo y firmarlo tú también.
+          </div>
+        )}
+
         {/* Firmar */}
         {canSign && (
           <div className="mb-6 rounded-card border border-line bg-bg-surface p-5 print:hidden">
-            <h2 className="mb-3 text-sm font-bold text-ink-primary">Firmar contrato</h2>
+            <h2 className="mb-3 text-sm font-bold text-ink-primary">
+              {isArtistOwner ? 'Revisa y confirma los detalles de la contratación' : 'Firmar contrato'}
+            </h2>
             <label className="mb-1 block text-xs font-semibold text-ink-muted">Nombre completo</label>
             <input
               value={fullName}
@@ -251,7 +374,9 @@ export default function ContractPage() {
                 onChange={(e) => setAcceptedTerms(e.target.checked)}
                 className="mt-0.5 h-4 w-4 accent-lime"
               />
-              He leído y acepto los términos del contrato digital descrito arriba.
+              {isArtistOwner
+                ? 'Confirmo que la información de esta contratación es correcta.'
+                : 'He leído y acepto los términos del contrato digital descrito arriba.'}
             </label>
             <button
               onClick={handleSign}
@@ -259,7 +384,7 @@ export default function ContractPage() {
               className="mt-4 flex w-full items-center justify-center gap-2 rounded-pill bg-lime px-4 py-3 text-sm font-bold text-bg-base transition hover:bg-lime-dark disabled:opacity-60"
             >
               {signing && <Loader2 className="h-4 w-4 animate-spin" />}
-              Firmar contrato
+              {isArtistOwner ? 'Firmar y confirmar' : 'Firmar contrato'}
             </button>
           </div>
         )}
@@ -286,10 +411,126 @@ export default function ContractPage() {
         {isPaidAndConfirmed && (
           <button
             onClick={handleDownloadPdf}
-            className="flex w-full items-center justify-center gap-2 rounded-pill border border-line px-4 py-3 text-sm font-bold text-ink-primary transition hover:border-lime/40 print:hidden"
+            className="mb-6 flex w-full items-center justify-center gap-2 rounded-pill border border-line px-4 py-3 text-sm font-bold text-ink-primary transition hover:border-lime/40 print:hidden"
           >
             <Download className="h-4 w-4" /> Descargar contrato en PDF
           </button>
+        )}
+
+        {/* Modificaciones después de firmar — nunca se sobrescribe un contrato firmado en
+            silencio: todo cambio pasa por aprobación y abre una nueva versión. */}
+        {isPaidAndConfirmed && (
+          <div className="mb-6 rounded-card border border-line bg-bg-surface p-5 print:hidden">
+            <h2 className="mb-1 flex items-center gap-1.5 text-sm font-bold text-ink-primary">
+              <History className="h-4 w-4" /> Modificaciones del contrato
+            </h2>
+            {contract.previous_versions?.length > 0 && (
+              <p className="mb-3 text-[11px] text-ink-muted">
+                Se guardan {contract.previous_versions.length} versión(es) anterior(es) en el historial.
+              </p>
+            )}
+
+            {pendingModification ? (
+              pendingModification.proposed_by === user?.id ? (
+                <p className="text-xs text-ink-muted">
+                  Esperando aprobación de la otra parte para cambiar{' '}
+                  {FIELD_LABELS[pendingModification.field].toLowerCase()} a "{pendingModification.new_value}".
+                </p>
+              ) : (
+                <div className="rounded-lg border border-amber/30 bg-amber/10 p-3 text-xs">
+                  <p className="font-bold text-ink-primary">Solicitud de modificación</p>
+                  <p className="mt-1 text-ink-muted">Campo: {FIELD_LABELS[pendingModification.field]}</p>
+                  <p className="text-ink-muted">
+                    Valor anterior: <span className="text-ink-primary">{pendingModification.old_value || '—'}</span>
+                  </p>
+                  <p className="text-ink-muted">
+                    Nuevo valor: <span className="font-bold text-ink-primary">{pendingModification.new_value}</span>
+                  </p>
+                  {pendingModification.message && (
+                    <p className="mt-1 italic text-ink-primary">"{pendingModification.message}"</p>
+                  )}
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      onClick={() => handleAcceptModification(pendingModification)}
+                      disabled={modSaving}
+                      className="flex items-center gap-1.5 rounded-pill bg-lime px-3 py-1.5 text-xs font-bold text-bg-base hover:bg-lime-dark disabled:opacity-60"
+                    >
+                      <Check className="h-3.5 w-3.5" /> Aprobar
+                    </button>
+                    <button
+                      onClick={() => handleRejectModification(pendingModification)}
+                      disabled={modSaving}
+                      className="flex items-center gap-1.5 rounded-pill border border-line px-3 py-1.5 text-xs font-bold text-ink-primary hover:border-red-400/40 hover:text-red-400"
+                    >
+                      <X className="h-3.5 w-3.5" /> Rechazar
+                    </button>
+                  </div>
+                </div>
+              )
+            ) : showModForm ? (
+              <div className="rounded-lg border border-line bg-bg-base p-3">
+                <label className="mb-1 block text-[11px] font-semibold text-ink-muted">Campo a modificar</label>
+                <select
+                  value={modField}
+                  onChange={(e) => {
+                    const f = e.target.value as NegotiableField;
+                    setModField(f);
+                    setModValue(fieldCurrentValue(f));
+                  }}
+                  className="mb-2 w-full rounded-lg border border-line bg-bg-surface px-3 py-2 text-sm text-ink-primary outline-none focus:border-lime"
+                >
+                  {(Object.keys(FIELD_LABELS) as NegotiableField[]).map((f) => (
+                    <option key={f} value={f}>
+                      {FIELD_LABELS[f]}
+                    </option>
+                  ))}
+                </select>
+                <label className="mb-1 block text-[11px] font-semibold text-ink-muted">Nuevo valor</label>
+                <input
+                  value={modValue}
+                  onChange={(e) => setModValue(e.target.value)}
+                  className="mb-2 w-full rounded-lg border border-line bg-bg-surface px-3 py-2 text-sm text-ink-primary outline-none focus:border-lime"
+                />
+                <label className="mb-1 block text-[11px] font-semibold text-ink-muted">Motivo</label>
+                <textarea
+                  value={modMessage}
+                  onChange={(e) => setModMessage(e.target.value)}
+                  rows={2}
+                  className="mb-2 w-full rounded-lg border border-line bg-bg-surface px-3 py-2 text-sm text-ink-primary outline-none focus:border-lime"
+                  placeholder='Ej: "El evento comenzará una hora más tarde."'
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowModForm(false)}
+                    className="flex-1 rounded-pill border border-line px-4 py-2 text-xs font-bold text-ink-primary hover:border-lime/40"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={submitModification}
+                    disabled={modSaving || !modValue.trim()}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-pill bg-lime px-4 py-2 text-xs font-bold text-bg-base hover:bg-lime-dark disabled:opacity-60"
+                  >
+                    {modSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    Solicitar modificación
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setModField('event_date');
+                  setModValue(fieldCurrentValue('event_date'));
+                  setModMessage('');
+                  setShowModForm(true);
+                }}
+                className="rounded-pill border border-line px-3 py-1.5 text-xs font-semibold text-ink-primary transition hover:border-lime/40"
+              >
+                Solicitar modificación del contrato
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>
