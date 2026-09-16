@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Loader2, MessageCircle, ArrowLeft, Check, X, FileSignature } from 'lucide-react';
+import { Loader2, MessageCircle, ArrowLeft, Check, X, FileSignature, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { getArtistByOwner, addBlockedDate } from '@/lib/artists';
 import {
@@ -66,6 +66,7 @@ export default function Chat() {
   const [acting, setActing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeContract, setActiveContract] = useState<Contract | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
 
   async function load() {
     if (!user) return;
@@ -226,7 +227,7 @@ export default function Chat() {
   const canRespond = !!active && active.isArtistSide && active.status === 'pending';
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-8rem)] max-w-5xl overflow-hidden md:h-[calc(100vh-6rem)] md:my-4 md:rounded-card md:border md:border-line">
+    <div className="mx-auto flex h-[calc(100vh-8rem)] max-w-5xl md:h-[calc(100vh-6rem)] md:my-4 md:overflow-hidden md:rounded-card md:border md:border-line">
       {/* Lista de conversaciones */}
       <div className={`w-full flex-shrink-0 overflow-y-auto border-r border-line bg-bg-base md:w-96 ${active ? 'hidden md:block' : 'block'}`}>
         <h1 className="px-6 pb-4 pt-7 font-display text-2xl font-bold text-ink-primary">Chat</h1>
@@ -237,6 +238,7 @@ export default function Chat() {
               onClick={() => {
                 setOpenId(c.bookingId);
                 setResponding(null);
+                setShowDetails(false);
               }}
               className={`flex w-full items-center gap-3.5 border-b border-line px-6 py-4 text-left transition hover:bg-bg-surface ${
                 openId === c.bookingId ? 'bg-bg-surface' : ''
@@ -293,6 +295,17 @@ export default function Chat() {
               )}
 
               {(active.status === 'pending' || active.status === 'confirmed') && (
+                <button
+                  type="button"
+                  onClick={() => setShowDetails((v) => !v)}
+                  className="mt-3 flex w-full items-center justify-between rounded-lg border border-line bg-bg-base px-3 py-2 text-xs font-semibold text-ink-muted transition hover:text-ink-primary"
+                >
+                  {showDetails ? 'Ocultar detalles de la reserva' : 'Ver detalles de la reserva y negociación'}
+                  {showDetails ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                </button>
+              )}
+
+              {showDetails && (active.status === 'pending' || active.status === 'confirmed') && (
                 <div className="mt-4">
                   <Stepper
                     steps={computeFlowSteps({
@@ -305,7 +318,7 @@ export default function Chat() {
                 </div>
               )}
 
-              {(active.status === 'pending' || active.status === 'confirmed') && user && (
+              {showDetails && (active.status === 'pending' || active.status === 'confirmed') && user && (
                 <NegotiationPanel
                   bookingId={active.bookingId}
                   userId={user.id}

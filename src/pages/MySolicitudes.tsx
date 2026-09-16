@@ -41,6 +41,7 @@ export default function MySolicitudes() {
     clientId: string;
   } | null>(null);
   const [responseMsg, setResponseMsg] = useState('');
+  const [view, setView] = useState<'client' | 'artist'>('client');
 
   async function load() {
     if (!user) return;
@@ -122,12 +123,39 @@ export default function MySolicitudes() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-base py-8 px-4 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-3xl space-y-10">
-        <div>
-          <h1 className="mb-6 font-display text-3xl font-bold text-ink-primary">Mis solicitudes</h1>
+    <div className="min-h-screen overflow-x-hidden bg-bg-base py-8 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-3xl space-y-6">
+        <h1 className="font-display text-3xl font-bold text-ink-primary">Mis solicitudes</h1>
 
-          <h2 className="mb-3 font-display text-lg font-bold text-ink-primary">Como cliente</h2>
+        {/* Filtro Cliente/Artista — solo tiene sentido mostrarlo si el usuario tiene
+            ambos roles; si no, no hay nada que filtrar. */}
+        {myArtist && (
+          <div className="flex gap-2 rounded-pill border border-line bg-bg-surface p-1">
+            <button
+              type="button"
+              onClick={() => setView('client')}
+              className={`flex-1 rounded-pill px-4 py-2 text-sm font-bold transition ${
+                view === 'client' ? 'bg-lime text-bg-base' : 'text-ink-muted hover:text-ink-primary'
+              }`}
+            >
+              Como cliente
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('artist')}
+              className={`flex-1 rounded-pill px-4 py-2 text-sm font-bold transition ${
+                view === 'artist' ? 'bg-lime text-bg-base' : 'text-ink-muted hover:text-ink-primary'
+              }`}
+            >
+              Como artista
+            </button>
+          </div>
+        )}
+
+        <div className={myArtist && view !== 'client' ? 'hidden' : ''}>
+          {!myArtist && (
+            <h2 className="mb-3 font-display text-lg font-bold text-ink-primary">Como cliente</h2>
+          )}
           {asClient.length === 0 ? (
             <p className="text-sm text-ink-muted">Todavía no pediste ninguna reserva.</p>
           ) : (
@@ -143,8 +171,8 @@ export default function MySolicitudes() {
                       alt={b.artist?.name}
                       className="h-14 w-14 flex-shrink-0 rounded-lg object-cover"
                     />
-                    <div className="flex-1">
-                      <p className="font-bold text-ink-primary">{b.artist?.name}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-bold text-ink-primary">{b.artist?.name}</p>
                       <p className="flex items-center gap-1 text-sm text-ink-muted">
                         <Calendar className="h-3.5 w-3.5" /> {b.event_date}
                         {b.start_time && (
@@ -231,21 +259,21 @@ export default function MySolicitudes() {
                         )
                       )}
                     </div>
-                    <div className="flex flex-shrink-0 flex-col items-end gap-2">
-                      <span className={`rounded-pill px-3 py-1 text-xs font-semibold ${STATUS_LABELS[b.status].className}`}>
-                        {STATUS_LABELS[b.status].label}
-                      </span>
-                      <Link
-                        to={`/chat?b=${b.id}`}
-                        title="Ir al chat de esta solicitud"
-                        className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-line text-ink-muted transition hover:border-lime/40 hover:text-lime"
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                        {unreadIds.has(b.id) && (
-                          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-bg-surface bg-lime" />
-                        )}
-                      </Link>
-                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 border-t border-line pt-3">
+                    <span className={`truncate rounded-pill px-3 py-1 text-xs font-semibold ${STATUS_LABELS[b.status].className}`}>
+                      {STATUS_LABELS[b.status].label}
+                    </span>
+                    <Link
+                      to={`/chat?b=${b.id}`}
+                      title="Ir al chat de esta solicitud"
+                      className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-line text-ink-muted transition hover:border-lime/40 hover:text-lime"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      {unreadIds.has(b.id) && (
+                        <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-bg-surface bg-lime" />
+                      )}
+                    </Link>
                   </div>
                 </div>
               ))}
@@ -254,7 +282,7 @@ export default function MySolicitudes() {
         </div>
 
         {myArtist && (
-          <div>
+          <div className={view !== 'artist' ? 'hidden' : ''}>
             <h2 className="mb-3 font-display text-lg font-bold text-ink-primary">
               Como artista ({myArtist.name})
             </h2>
@@ -268,8 +296,8 @@ export default function MySolicitudes() {
                     className="flex flex-col gap-3 rounded-card border border-line bg-bg-surface p-4"
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                      <div className="flex-1">
-                        <p className="font-bold text-ink-primary">{b.client?.full_name ?? 'Cliente'}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-bold text-ink-primary">{b.client?.full_name ?? 'Cliente'}</p>
                         <p className="flex items-center gap-1 text-sm text-ink-muted">
                           <Calendar className="h-3.5 w-3.5" /> {b.event_date}
                           {b.start_time && (
@@ -299,7 +327,7 @@ export default function MySolicitudes() {
                         )}
                       </div>
 
-                      <div className="flex flex-shrink-0 items-center gap-2">
+                      <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
                         {b.status === 'pending' && !respondingTo ? (
                           <>
                             <button

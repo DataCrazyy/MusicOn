@@ -18,7 +18,7 @@ function App() {
   return (
     <BrowserRouter>
       <Navbar />
-      <div className="pb-16 md:pb-0">
+      <div className="overflow-x-hidden pb-16 md:pb-0">
         <Routes>
           <Route path="/" element={<Entry />} />
           <Route path="/explore" element={<Explore />} />
