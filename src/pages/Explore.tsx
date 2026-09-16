@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Loader2, Sparkles, X } from 'lucide-react';
+import { Search, Loader2, Sparkles, X, Wand2 } from 'lucide-react';
 import ArtistCardLite from '@/components/ArtistCardLite';
+import ExploreWizard from '@/components/ExploreWizard';
 import { listArtists, type DbArtist } from '@/lib/artists';
 import { getAllArtistRatings, type RatingSummary } from '@/lib/reviews';
 
@@ -33,6 +34,11 @@ export default function Explore() {
   const [sort, setSort] = useState<SortBy>('default');
   const [minMembers, setMinMembers] = useState(0);
   const [ratings, setRatings] = useState<Record<string, RatingSummary>>({});
+  const [eventType, setEventType] = useState<string | null>(null);
+  // Al entrar a Explorar, primero se guía al usuario paso a paso (evento, ubicación,
+  // género, presupuesto) en vez de lanzarlo directo al listado completo con todos los
+  // artistas; "Ver todos los resultados" o "Prefiero ver todos" salen del asistente.
+  const [showWizard, setShowWizard] = useState(true);
 
   useEffect(() => {
     listArtists()
@@ -44,6 +50,8 @@ export default function Explore() {
 
   const genres = useMemo(() => ['All', ...Array.from(new Set(artists.map((a) => a.genre)))], [artists]);
   const cities = useMemo(() => ['All', ...Array.from(new Set(artists.map((a) => a.city)))], [artists]);
+  const genresForWizard = useMemo(() => genres.filter((g) => g !== 'All'), [genres]);
+  const citiesForWizard = useMemo(() => cities.filter((c) => c !== 'All'), [cities]);
 
   function applySort(list: DbArtist[]) {
     if (sort === 'price_asc') return [...list].sort((a, b) => a.price_from - b.price_from);
@@ -112,6 +120,46 @@ export default function Explore() {
       <div className="mx-auto max-w-7xl">
         <h1 className="mb-1 font-display text-3xl font-bold text-ink-primary">Explorar artistas</h1>
         <p className="mb-6 text-sm text-ink-muted">Cuéntanos qué buscas y te mostramos las mejores opciones.</p>
+
+        {loading && (
+          <div className="flex min-h-[40vh] items-center justify-center gap-2 text-sm text-ink-muted">
+            <Loader2 className="h-4 w-4 animate-spin" /> Cargando artistas...
+          </div>
+        )}
+
+        {error && (
+          <div className="rounded-card border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
+            No pudimos cargar los artistas: {error}
+          </div>
+        )}
+
+        {showWizard && !loading && !error && (
+          <ExploreWizard
+            cities={citiesForWizard}
+            genres={genresForWizard}
+            matchCount={filtered.length}
+            eventType={eventType}
+            onEventTypeChange={setEventType}
+            city={city}
+            onCityChange={setCity}
+            genre={genre}
+            onGenreChange={setGenre}
+            maxBudget={maxBudget}
+            onMaxBudgetChange={setMaxBudget}
+            onFinish={() => setShowWizard(false)}
+            onSkip={() => setShowWizard(false)}
+          />
+        )}
+
+        {!showWizard && (
+        <>
+        <button
+          type="button"
+          onClick={() => setShowWizard(true)}
+          className="mb-4 flex items-center gap-1.5 text-xs font-semibold text-ink-muted hover:text-lime"
+        >
+          <Wand2 className="h-3.5 w-3.5" /> Volver al buscador guiado
+        </button>
 
         {/* Filters */}
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
@@ -197,18 +245,6 @@ export default function Explore() {
         </div>
 
         {/* Content */}
-        {loading && (
-          <div className="flex min-h-[40vh] items-center justify-center gap-2 text-sm text-ink-muted">
-            <Loader2 className="h-4 w-4 animate-spin" /> Cargando artistas...
-          </div>
-        )}
-
-        {error && (
-          <div className="rounded-card border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
-            No pudimos cargar los artistas: {error}
-          </div>
-        )}
-
         {!loading && !error && filtered.length === 0 && (
           <div>
             <p className="mb-6 text-sm text-ink-muted">No encontramos artistas con esos filtros exactos.</p>
@@ -236,6 +272,8 @@ export default function Explore() {
               ))}
             </div>
           </>
+        )}
+        </>
         )}
       </div>
     </div>
