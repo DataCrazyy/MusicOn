@@ -13,6 +13,7 @@ import {
 import { STATUS_LABELS } from '@/lib/bookingStatus';
 import { listUnreadBookingIds } from '@/lib/messages';
 import BookingMessages from '@/components/BookingMessages';
+import PriceNegotiation from '@/components/PriceNegotiation';
 import EmptyState from '@/components/EmptyState';
 
 type Conversation = {
@@ -26,6 +27,8 @@ type Conversation = {
   isArtistSide: boolean;
   artistId: string;
   eventDate: string;
+  subtotal: number;
+  total: number;
 };
 
 // Se ocultan solo las rechazadas; las pendientes también se muestran, para poder
@@ -73,6 +76,8 @@ export default function Chat() {
         isArtistSide: false,
         artistId: b.artist_id,
         eventDate: b.event_date,
+        subtotal: b.subtotal,
+        total: b.total,
       }));
 
     const artistSide: Conversation[] = asArtist
@@ -87,6 +92,8 @@ export default function Chat() {
         isArtistSide: true,
         artistId: b.artist_id,
         eventDate: b.event_date,
+        subtotal: b.subtotal,
+        total: b.total,
       }));
 
     const all = [...clientSide, ...artistSide];
@@ -230,6 +237,15 @@ export default function Chat() {
                   {STATUS_LABELS[active.status].label}
                 </span>
               </div>
+
+              {active.status === 'pending' && (
+                <PriceNegotiation
+                  bookingId={active.bookingId}
+                  subtotal={active.subtotal}
+                  total={active.total}
+                  onUpdated={load}
+                />
+              )}
 
               {canRespond && !responding && (
                 <div className="mt-4 flex gap-2">

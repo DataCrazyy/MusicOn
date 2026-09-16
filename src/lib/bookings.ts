@@ -13,6 +13,7 @@ export type BookingWithArtist = {
   guest_range: string | null;
   notes: string | null;
   artist_response: string | null;
+  subtotal: number;
   total: number;
   status: BookingStatus;
   created_at: string;
@@ -30,6 +31,7 @@ export type BookingWithClient = {
   guest_range: string | null;
   notes: string | null;
   artist_response: string | null;
+  subtotal: number;
   total: number;
   status: BookingStatus;
   created_at: string;
@@ -97,6 +99,11 @@ export async function listBookingsForArtist(artistId: string): Promise<BookingWi
 
   if (error) throw error;
   return data as unknown as BookingWithClient[];
+}
+
+export async function proposeNewPrice(bookingId: string, total: number) {
+  const { error } = await supabase.from('bookings').update({ total }).eq('id', bookingId);
+  if (error) throw error;
 }
 
 export async function respondToBooking(
