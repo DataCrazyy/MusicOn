@@ -14,14 +14,7 @@ import {
 import { listUnreadBookingIds } from '@/lib/messages';
 import BookingMessages from '@/components/BookingMessages';
 import EmptyState from '@/components/EmptyState';
-
-const STATUS_LABELS: Record<BookingStatus, { label: string; className: string }> = {
-  pending: { label: 'Pendiente', className: 'bg-amber/15 text-amber' },
-  confirmed: { label: 'Confirmada', className: 'bg-lime/15 text-lime' },
-  in_escrow: { label: 'En escrow', className: 'bg-teal/15 text-teal' },
-  completed: { label: 'Completada', className: 'bg-bg-raised text-ink-muted' },
-  cancelled: { label: 'Rechazada', className: 'bg-red-500/15 text-red-400' },
-};
+import { STATUS_LABELS } from '@/lib/bookingStatus';
 
 function ChatButton({
   active,
