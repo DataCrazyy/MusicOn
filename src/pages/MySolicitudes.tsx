@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, Check, X, Calendar, MapPin, Clock, Users, MessageCircle, ClipboardList, CheckCircle2, Archive, ArchiveRestore } from 'lucide-react';
+import { Loader2, Check, X, Calendar, MapPin, Clock, Users, MessageCircle, ClipboardList, CheckCircle2, Archive, ArchiveRestore, ArrowUpDown } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { getArtistByOwner, addBlockedDate, type DbArtist } from '@/lib/artists';
 import { formatPrice } from '@/lib/format';
@@ -43,7 +43,8 @@ export default function MySolicitudes() {
   } | null>(null);
   const [responseMsg, setResponseMsg] = useState('');
   const [view, setView] = useState<'client' | 'artist'>('client');
-  const [eventsOnly, setEventsOnly] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | BookingStatus>('all');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [showArchived, setShowArchived] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
 
@@ -138,15 +139,20 @@ export default function MySolicitudes() {
 
   // El archivado es independiente por lado (archived_by_client / archived_by_artist):
   // archivar una solicitud no la oculta de la otra parte, solo de tu propia vista.
-  // "Ver tus eventos": una reserva ya confirmada/pagada es un evento en la agenda,
-  // no solo una solicitud en curso -- este filtro las aisla de las pendientes.
-  const EVENT_STATUSES = new Set<BookingStatus>(['confirmed', 'in_escrow', 'completed']);
+  // Orden por fecha de solicitud (created_at) -- independiente del orden por fecha de
+  // evento que usan Chat y la consulta base, para poder ver "la última que pedí" o
+  // "la primera que pedí" en Mis solicitudes.
+  function byRequestDate(a: { created_at: string }, b: { created_at: string }) {
+    return sortOrder === 'newest' ? b.created_at.localeCompare(a.created_at) : a.created_at.localeCompare(b.created_at);
+  }
   const visibleAsClient = asClient
     .filter((b) => (showArchived ? b.archived_by_client : !b.archived_by_client))
-    .filter((b) => !eventsOnly || EVENT_STATUSES.has(b.status));
+    .filter((b) => statusFilter === 'all' || b.status === statusFilter)
+    .sort(byRequestDate);
   const visibleAsArtist = asArtist
     .filter((b) => (showArchived ? b.archived_by_artist : !b.archived_by_artist))
-    .filter((b) => !eventsOnly || EVENT_STATUSES.has(b.status));
+    .filter((b) => statusFilter === 'all' || b.status === statusFilter)
+    .sort(byRequestDate);
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-bg-base py-8 px-4 sm:px-6 lg:px-8">
@@ -163,26 +169,30 @@ export default function MySolicitudes() {
           </button>
         </div>
 
-        {/* Ver tus eventos: aisla lo ya confirmado/pagado/realizado de las solicitudes
-            todavia en curso, sin necesitar una pagina nueva. */}
-        <div className="flex gap-2 rounded-pill border border-line bg-bg-surface p-1">
+        {/* Filtrar por estado y elegir el orden (por fecha en que se pidió, no la
+            fecha del evento) -- reemplaza el segmentado "Todas/Mis eventos" por algo
+            mas flexible. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as 'all' | BookingStatus)}
+            className="flex-1 rounded-lg border border-line bg-bg-surface px-3 py-2.5 text-sm text-ink-primary outline-none focus:border-lime"
+          >
+            <option value="all">Todos los estados</option>
+            {(Object.keys(STATUS_LABELS) as BookingStatus[]).map((s) => (
+              <option key={s} value={s}>
+                {STATUS_LABELS[s].label}
+              </option>
+            ))}
+          </select>
           <button
             type="button"
-            onClick={() => setEventsOnly(false)}
-            className={`flex-1 rounded-pill px-4 py-2 text-sm font-bold transition ${
-              !eventsOnly ? 'bg-lime text-bg-base' : 'text-ink-muted hover:text-ink-primary'
-            }`}
+            onClick={() => setSortOrder((v) => (v === 'newest' ? 'oldest' : 'newest'))}
+            title="Cambiar orden"
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-pill border border-line px-3 py-2.5 text-xs font-semibold text-ink-muted transition hover:border-lime/40 hover:text-ink-primary"
           >
-            Todas
-          </button>
-          <button
-            type="button"
-            onClick={() => setEventsOnly(true)}
-            className={`flex-1 rounded-pill px-4 py-2 text-sm font-bold transition ${
-              eventsOnly ? 'bg-lime text-bg-base' : 'text-ink-muted hover:text-ink-primary'
-            }`}
-          >
-            Mis eventos
+            <ArrowUpDown className="h-3.5 w-3.5" />
+            {sortOrder === 'newest' ? 'Más recientes primero' : 'Más antiguas primero'}
           </button>
         </div>
 
@@ -219,8 +229,8 @@ export default function MySolicitudes() {
             <p className="text-sm text-ink-muted">
               {showArchived
                 ? 'No tienes solicitudes archivadas.'
-                : eventsOnly
-                  ? 'Todavía no tienes eventos confirmados.'
+                : statusFilter !== 'all'
+                  ? `No tienes solicitudes con el estado "${STATUS_LABELS[statusFilter].label}".`
                   : 'Todavía no pediste ninguna reserva.'}
             </p>
           ) : (
@@ -372,8 +382,8 @@ export default function MySolicitudes() {
               <p className="text-sm text-ink-muted">
                 {showArchived
                   ? 'No tienes solicitudes archivadas.'
-                  : eventsOnly
-                    ? 'Todavía no tienes eventos confirmados.'
+                  : statusFilter !== 'all'
+                    ? `No tienes solicitudes con el estado "${STATUS_LABELS[statusFilter].label}".`
                     : 'Todavía no recibiste solicitudes.'}
               </p>
             ) : (

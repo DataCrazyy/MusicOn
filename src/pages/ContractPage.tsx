@@ -62,6 +62,8 @@ export default function ContractPage() {
   const [signing, setSigning] = useState(false);
   const [paying, setPaying] = useState(false);
   const [sendingContract, setSendingContract] = useState(false);
+  const [notifyingArtist, setNotifyingArtist] = useState(false);
+  const [notifiedArtist, setNotifiedArtist] = useState(false);
 
   const [events, setEvents] = useState<NegotiationEvent[]>([]);
   const [showModForm, setShowModForm] = useState(false);
@@ -83,6 +85,7 @@ export default function ContractPage() {
     setLoading(true);
     setError(null);
     setArtistConfirmedConditions(false);
+    setNotifiedArtist(false);
     try {
       const b = await getBookingById(bookingId);
       setBooking(b);
@@ -154,6 +157,26 @@ export default function ContractPage() {
       await load();
     } finally {
       setSendingContract(false);
+    }
+  }
+
+  /** El cliente, mientras espera que el artista firme, puede avisarle explícitamente
+   * que ya revisó todo y está listo -- antes no tenía ninguna acción visible en esta
+   * pantalla, solo podía esperar en silencio. */
+  async function handleNotifyArtist() {
+    if (!booking?.artist?.owner_id) return;
+    setNotifyingArtist(true);
+    try {
+      await createNotification({
+        userId: booking.artist.owner_id,
+        bookingId: booking.id,
+        type: 'contract_ready',
+        message: `${clientName} ya revisó la contratación y está listo/a — revisa y firma el contrato.`,
+        link: `/contrato/${booking.id}`,
+      });
+      setNotifiedArtist(true);
+    } finally {
+      setNotifyingArtist(false);
     }
   }
 
@@ -463,12 +486,33 @@ export default function ContractPage() {
           <ContractDocument booking={booking} clientName={clientName} contract={contract} />
         </div>
 
-        {/* Esperando que el artista firme y despues envíe el contrato */}
+        {/* Esperando que el artista firme y despues envíe el contrato -- el cliente
+            ahora tiene una acción explícita para avisarle que ya revisó todo, en vez de
+            solo poder esperar sin hacer nada (ver handleNotifyArtist). */}
         {waitingOnArtistSignature && (
           <div className="mb-6 rounded-card border border-line bg-bg-surface p-5 text-sm text-ink-muted print:hidden">
-            {!artistSigned
-              ? `Pendiente de firma del artista — cuando ${booking.artist?.name} firme el contrato y te lo envíe vas a poder revisarlo y firmarlo tú también.`
-              : `${booking.artist?.name} ya firmó el contrato — todavía no te lo envió. En cuanto lo haga vas a poder revisarlo y firmarlo.`}
+            <p>
+              {!artistSigned
+                ? `Pendiente de firma del artista — cuando ${booking.artist?.name} firme el contrato y te lo envíe vas a poder revisarlo y firmarlo tú también.`
+                : `${booking.artist?.name} ya firmó el contrato — todavía no te lo envió. En cuanto lo haga vas a poder revisarlo y firmarlo.`}
+            </p>
+            {!artistSigned && (
+              notifiedArtist ? (
+                <p className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-lime">
+                  <Check className="h-3.5 w-3.5" /> Le avisamos a {booking.artist?.name} que estás listo/a.
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleNotifyArtist}
+                  disabled={notifyingArtist || !booking.artist?.owner_id}
+                  className="mt-3 flex items-center gap-1.5 rounded-pill border border-line px-3 py-1.5 text-xs font-bold text-ink-primary transition hover:border-lime/40 disabled:opacity-60"
+                >
+                  {notifyingArtist ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  Avisarle que estoy listo/a para firmar
+                </button>
+              )
+            )}
           </div>
         )}
 
