@@ -41,6 +41,8 @@ export type NewBookingInput = {
   event_date: string;
   start_time: string;
   venue: string;
+  event_lat: number | null;
+  event_lng: number | null;
   guest_range: string;
   notes: string;
 };
@@ -60,6 +62,8 @@ export async function createBookingRequest(
       event_date: input.event_date,
       start_time: input.start_time,
       venue: input.venue,
+      event_lat: input.event_lat,
+      event_lng: input.event_lng,
       guest_range: input.guest_range,
       notes: input.notes,
       subtotal: referencePrice,

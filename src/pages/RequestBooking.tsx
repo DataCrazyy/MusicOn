@@ -1,11 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle2, HelpCircle } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { getArtistById, type DbArtist } from '@/lib/artists';
 import { formatPrice } from '@/lib/format';
 import { createBookingRequest } from '@/lib/bookings';
 import AvailabilityCalendar from '@/components/AvailabilityCalendar';
+import AddressMapField from '@/components/AddressMapField';
+import HowItWorksModal from '@/components/HowItWorksModal';
 
 const EVENT_TYPES = ['Boda', 'Corporativo', 'Fiesta privada', 'Cumpleaños', 'Otro'];
 
@@ -30,6 +32,9 @@ export default function RequestBooking() {
   const [eventDate, setEventDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [venue, setVenue] = useState('');
+  const [eventLat, setEventLat] = useState<number | null>(null);
+  const [eventLng, setEventLng] = useState<number | null>(null);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [guestRange, setGuestRange] = useState(GUEST_RANGES[0]);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -74,6 +79,8 @@ export default function RequestBooking() {
         event_date: eventDate,
         start_time: startTime,
         venue,
+        event_lat: eventLat,
+        event_lng: eventLng,
         guest_range: guestRange,
         notes,
       });
@@ -123,6 +130,7 @@ export default function RequestBooking() {
   }
 
   return (
+    <>
     <div className="min-h-screen bg-bg-base py-8 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-lg">
         <Link
@@ -146,7 +154,16 @@ export default function RequestBooking() {
           </div>
         </div>
 
-        <h1 className="mb-2 font-display text-2xl font-bold text-ink-primary">Pedir una reserva</h1>
+        <div className="mb-2 flex items-start justify-between gap-3">
+          <h1 className="font-display text-2xl font-bold text-ink-primary">Pedir una reserva</h1>
+          <button
+            type="button"
+            onClick={() => setShowHowItWorks(true)}
+            className="mt-1 flex flex-shrink-0 items-center gap-1 text-xs font-semibold text-ink-muted hover:text-lime"
+          >
+            <HelpCircle className="h-3.5 w-3.5" /> ¿Cómo funciona?
+          </button>
+        </div>
         <p className="mb-6 text-sm text-ink-muted">
           Esto es una solicitud — {artist.name} la va a poder aceptar o rechazar. Todavía no se cobra nada.
         </p>
@@ -209,19 +226,16 @@ export default function RequestBooking() {
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-ink-muted">Dirección completa del lugar</label>
-            <input
-              required
-              value={venue}
-              onChange={(e) => setVenue(e.target.value)}
-              className="w-full rounded-lg border border-line bg-bg-surface px-3 py-2.5 text-sm text-ink-primary outline-none focus:border-lime"
-              placeholder="Ej: Salón Los Tajibos, Av. San Martín #123, Santa Cruz"
-            />
-            <p className="mt-1 text-xs text-ink-muted">
-              Dale la dirección exacta — el artista la necesita para decidir si acepta.
-            </p>
-          </div>
+          <AddressMapField
+            address={venue}
+            onAddressChange={setVenue}
+            lat={eventLat}
+            lng={eventLng}
+            onLocationChange={(lat, lng) => {
+              setEventLat(lat);
+              setEventLng(lng);
+            }}
+          />
 
           <div>
             <label className="mb-1 block text-xs font-semibold text-ink-muted">Cantidad de invitados</label>
@@ -249,6 +263,38 @@ export default function RequestBooking() {
             />
           </div>
 
+          <div className="rounded-card border border-line bg-bg-surface p-4">
+            <h2 className="mb-3 text-sm font-bold text-ink-primary">Resumen</h2>
+            <dl className="space-y-1.5 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-ink-muted">Artista</dt>
+                <dd className="text-ink-primary">{artist.name}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-ink-muted">Fecha</dt>
+                <dd className="text-ink-primary">{eventDate || '—'}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-ink-muted">Horario</dt>
+                <dd className="text-ink-primary">{startTime || '—'}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-ink-muted">Invitados</dt>
+                <dd className="text-ink-primary">{guestRange}</dd>
+              </div>
+              <div className="mt-2 flex justify-between border-t border-line pt-2 font-bold">
+                <dt className="text-ink-primary">Precio de referencia</dt>
+                <dd className="text-ink-primary">
+                  {formatPrice(artist.price_from)}/{artist.price_per === 'hour' ? 'hora' : 'evento'}
+                </dd>
+              </div>
+            </dl>
+            <p className="mt-3 text-xs text-ink-muted">
+              Este es el precio publicado por el artista. El precio final se acuerda con él por chat
+              antes de confirmar la contratación — todavía no se realiza ningún cobro.
+            </p>
+          </div>
+
           {error && (
             <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
               {error}
@@ -266,5 +312,7 @@ export default function RequestBooking() {
         </form>
       </div>
     </div>
+    {showHowItWorks && <HowItWorksModal onClose={() => setShowHowItWorks(false)} />}
+    </>
   );
 }
