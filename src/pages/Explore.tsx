@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, Loader2, Mic2, ArrowRight, Sparkles } from 'lucide-react';
+import { Search, Loader2, Sparkles } from 'lucide-react';
 import ArtistCardLite from '@/components/ArtistCardLite';
 import { listArtists, type DbArtist } from '@/lib/artists';
 
@@ -8,14 +7,13 @@ type SortBy = 'price_asc' | 'price_desc' | 'recent';
 
 const BUDGETS = [
   { label: 'Cualquier presupuesto', value: Infinity },
-  { label: 'Hasta $500', value: 500 },
-  { label: 'Hasta $1.000', value: 1000 },
-  { label: 'Hasta $2.000', value: 2000 },
-  { label: 'Hasta $5.000', value: 5000 },
+  { label: 'Hasta Bs 500', value: 500 },
+  { label: 'Hasta Bs 1.000', value: 1000 },
+  { label: 'Hasta Bs 2.000', value: 2000 },
+  { label: 'Hasta Bs 5.000', value: 5000 },
 ];
 
 export default function Explore() {
-  const navigate = useNavigate();
   const [artists, setArtists] = useState<DbArtist[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -79,24 +77,7 @@ export default function Explore() {
     <div className="min-h-screen bg-bg-base py-8 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <h1 className="mb-1 font-display text-3xl font-bold text-ink-primary">Explorar artistas</h1>
-        <p className="mb-6 text-sm text-ink-muted">Contanos qué buscás y te mostramos las mejores opciones.</p>
-
-        {/* Banner: publicar perfil de artista */}
-        <button
-          onClick={() => navigate('/artista/nuevo')}
-          className="group mb-6 flex w-full items-center justify-between gap-4 rounded-card border border-line bg-bg-surface px-5 py-4 text-left transition hover:border-lime/40"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-violet/15 text-violet">
-              <Mic2 className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="font-semibold text-ink-primary">¿Sos artista o tenés una banda?</p>
-              <p className="text-sm text-ink-muted">Publicá tu perfil gratis y empezá a recibir solicitudes.</p>
-            </div>
-          </div>
-          <ArrowRight className="h-5 w-5 flex-shrink-0 text-ink-muted transition group-hover:translate-x-1 group-hover:text-lime" />
-        </button>
+        <p className="mb-6 text-sm text-ink-muted">Cuéntanos qué buscas y te mostramos las mejores opciones.</p>
 
         {/* Filters */}
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">

@@ -33,12 +33,12 @@ export default function Entry() {
               <Sparkles className="h-4 w-4 text-lime" /> Encontrá al artista ideal para tu evento
             </div>
             <h1 className="font-display text-5xl font-extrabold leading-[1.05] text-ink-primary sm:text-6xl lg:text-7xl">
-              Reservá música en vivo
+              Reserva música en vivo
               <br />
               <span className="text-lime">en minutos.</span>
             </h1>
             <p className="mt-6 max-w-md text-lg leading-relaxed text-ink-muted">
-              Explorá artistas de Bolivia, mandá tu solicitud y coordiná todo directamente con ellos.
+              Explora artistas de Bolivia, envía tu solicitud y coordina todo directamente con ellos.
               De bodas a fiestas privadas — el sonido correcto está a un click.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -49,12 +49,6 @@ export default function Entry() {
                 Explorar artistas
                 <ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" />
               </Link>
-              <button
-                onClick={() => navigate('/artista/nuevo')}
-                className="flex items-center gap-2 rounded-pill border border-line bg-bg-surface px-6 py-3.5 font-bold text-ink-primary transition hover:border-lime/40"
-              >
-                Ofrecer mis servicios
-              </button>
             </div>
           </div>
 
@@ -105,10 +99,10 @@ export default function Entry() {
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-6 text-center md:flex-row md:text-left">
           <div>
             <h2 className="font-display text-3xl font-bold text-ink-primary">
-              ¿Sos artista o tenés una banda?
+              ¿Eres artista o tienes una banda?
             </h2>
             <p className="mt-2 text-lg text-ink-muted">
-              Publicá tu perfil, recibí solicitudes de reserva y manejá tu disponibilidad, todo gratis.
+              Publica tu perfil, recibe solicitudes de reserva y administra tu disponibilidad, todo gratis.
             </p>
           </div>
           <button

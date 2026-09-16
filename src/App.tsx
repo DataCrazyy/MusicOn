@@ -25,8 +25,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/artista/nuevo" element={<RequireAuth><BecomeArtist /></RequireAuth>} />
           <Route path="/reservar/:artistId" element={<RequireAuth><RequestBooking /></RequireAuth>} />
-          <Route path="/solicitudes" element={<RequireAuth><MySolicitudes /></RequireAuth>} />
-          <Route path="/chat" element={<RequireAuth><Chat /></RequireAuth>} />
+          <Route path="/solicitudes" element={<MySolicitudes />} />
+          <Route path="/chat" element={<Chat />} />
           <Route path="/cuenta" element={<RequireAuth><Account /></RequireAuth>} />
           <Route path="/bienvenida" element={<RequireAuth><Onboarding /></RequireAuth>} />
         </Routes>

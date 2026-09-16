@@ -85,7 +85,7 @@ export default function BookingMessages({ bookingId, recipientId, onRead, sugges
             </div>
           ) : messages.length === 0 ? (
             <p className="py-1 text-xs text-ink-muted">
-              Todavía no hay mensajes. Escribí tu consulta abajo.
+              Todavía no hay mensajes. Escribe tu consulta abajo.
             </p>
           ) : (
             messages.map((m) => {
@@ -127,7 +127,7 @@ export default function BookingMessages({ bookingId, recipientId, onRead, sugges
         <input
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder="Escribí una consulta..."
+          placeholder="Escribe una consulta..."
           className="flex-1 rounded-full border border-line bg-bg-surface px-5 py-3 text-sm text-ink-primary outline-none focus:border-lime"
         />
         <button

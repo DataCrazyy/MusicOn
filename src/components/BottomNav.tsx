@@ -11,7 +11,7 @@ export default function BottomNav() {
   const tabs = [
     { to: '/explore', label: 'Explorar', icon: Compass, badge: false },
     { to: '/solicitudes', label: 'Solicitudes', icon: ClipboardList, badge: false },
-    { to: user ? '/chat' : '/login', label: 'Chat', icon: MessageCircle, badge: unread > 0 },
+    { to: '/chat', label: 'Chat', icon: MessageCircle, badge: unread > 0 },
     { to: user ? '/cuenta' : '/login', label: 'Cuenta', icon: User, badge: false },
   ];
 

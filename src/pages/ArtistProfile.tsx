@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, BadgeCheck, MapPin, Users, Loader2 } from 'lucide-react';
 import { getArtistById, type DbArtist } from '@/lib/artists';
+import { formatPrice } from '@/lib/format';
 import { useAuth } from '@/lib/AuthContext';
 import { toSpotifyEmbedUrl, spotifyEmbedHeight, toYouTubeEmbedUrl } from '@/lib/embeds';
 import ShareButton from '@/components/ShareButton';
@@ -50,7 +51,7 @@ export default function ArtistProfile() {
           </Link>
           <ShareButton
             title={artist.name}
-            text={`Mirá a ${artist.name} en MusicOn`}
+            text={`Mira a ${artist.name} en MusicOn`}
             url={window.location.href}
             label="Compartir"
           />
@@ -87,7 +88,7 @@ export default function ArtistProfile() {
 
               <div className="text-right">
                 <p className="font-display text-2xl font-bold text-ink-primary">
-                  ${artist.price_from}
+                  {formatPrice(artist.price_from)}
                   <span className="text-sm font-normal text-ink-muted">
                     /{artist.price_per === 'hour' ? 'hora' : 'evento'}
                   </span>

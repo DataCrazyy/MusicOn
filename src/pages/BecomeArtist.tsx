@@ -94,7 +94,7 @@ export default function BecomeArtist() {
     setPhotoError(null);
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      setPhotoError('Subí un archivo de imagen (JPG, PNG o WEBP).');
+      setPhotoError('Sube un archivo de imagen (JPG, PNG o WEBP).');
       return;
     }
     if (file.size > MAX_PHOTO_MB * 1024 * 1024) {
@@ -182,7 +182,7 @@ export default function BecomeArtist() {
         photoUrl = await uploadArtistPhoto(user.id, photoFile);
       }
       if (!photoUrl) {
-        setError('Subí una foto de perfil.');
+        setError('Sube una foto de perfil.');
         setSubmitting(false);
         return;
       }
@@ -241,7 +241,7 @@ export default function BecomeArtist() {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-4 px-4 text-center">
         <Sparkles className="h-10 w-10 text-lime" />
-        <h1 className="font-display text-2xl font-bold text-ink-primary">Ya tenés tu perfil de artista</h1>
+        <h1 className="font-display text-2xl font-bold text-ink-primary">Ya tienes tu perfil de artista</h1>
         <p className="text-sm text-ink-muted">
           Tu ficha "{existing.name}" ya está publicada en MusicOn.
         </p>
@@ -272,7 +272,7 @@ export default function BecomeArtist() {
         <p className="mb-8 text-sm text-ink-muted">
           {existing
             ? 'Actualizá tus datos cuando quieras.'
-            : 'Completá tus datos para que la gente te pueda encontrar y contratar en MusicOn.'}
+            : 'Completa tus datos para que la gente te pueda encontrar y contratar en MusicOn.'}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -313,7 +313,7 @@ export default function BecomeArtist() {
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-bg-raised">
                     <ImagePlus className="h-5 w-5 text-ink-muted" />
                   </div>
-                  <span className="text-sm font-semibold text-ink-primary">Arrastrá una foto acá</span>
+                  <span className="text-sm font-semibold text-ink-primary">Arrastra una foto aquí</span>
                   <span className="text-xs text-ink-muted">o hacé clic para elegir un archivo</span>
                   <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
                 </label>
@@ -380,7 +380,7 @@ export default function BecomeArtist() {
               maxLength={BIO_MAX_LENGTH}
               rows={3}
               className="w-full rounded-lg border border-line bg-bg-surface px-3 py-2.5 text-sm text-ink-primary outline-none focus:border-lime"
-              placeholder="Contá tu experiencia, estilo, para qué tipo de eventos tocás..."
+              placeholder="Cuenta tu experiencia, estilo, para qué tipo de eventos tocas..."
             />
           </div>
 

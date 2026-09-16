@@ -176,8 +176,8 @@ export default function Account() {
           </>
         ) : (
           <>
-            <p className="font-semibold text-ink-primary">¿Sos artista o tenés una banda?</p>
-            <p className="mt-1 text-sm text-ink-muted">Publicá tu perfil gratis y empezá a recibir solicitudes.</p>
+            <p className="font-semibold text-ink-primary">¿Eres artista o tienes una banda?</p>
+            <p className="mt-1 text-sm text-ink-muted">Publica tu perfil gratis y empieza a recibir solicitudes.</p>
             <button
               onClick={() => navigate('/artista/nuevo')}
               className="mt-3 flex items-center gap-2 rounded-pill bg-violet px-4 py-2 text-sm font-bold text-white transition hover:bg-violet-dark"
@@ -219,13 +219,13 @@ export default function Account() {
       {/* Invitar amigos */}
       <div className="mt-4 rounded-card border border-line bg-bg-surface p-6 text-center">
         <p className="font-semibold text-ink-primary">¿Te gusta MusicOn?</p>
-        <p className="mt-1 text-sm text-ink-muted">Invitá a un amigo a descubrir artistas o a publicar su perfil.</p>
+        <p className="mt-1 text-sm text-ink-muted">Invita a un amigo a descubrir artistas o a publicar su perfil.</p>
         <div className="mt-3 flex justify-center">
           <ShareButton
             title="MusicOn"
-            text="Descubrí MusicOn: reservá músicos en vivo para tu evento en minutos."
+            text="Descubre MusicOn: reserva músicos en vivo para tu evento en minutos."
             url={window.location.origin}
-            label="Invitá a un amigo"
+            label="Invita a un amigo"
             className="flex items-center gap-2 rounded-pill bg-lime px-5 py-2.5 text-sm font-bold text-bg-base transition hover:bg-lime-dark"
           />
         </div>

@@ -153,8 +153,8 @@ export default function AvailabilityCalendar({
         <span className="flex items-center gap-1">
           <span className="h-2.5 w-2.5 rounded-sm bg-ink-muted/30" /> No atiende
         </span>
-        {onToggle && !readOnly && <span>Tocá un día libre para marcarlo como ocupado</span>}
-        {onSelect && <span>Tocá un día libre para elegir la fecha</span>}
+        {onToggle && !readOnly && <span>Toca un día libre para marcarlo como ocupado</span>}
+        {onSelect && <span>Toca un día libre para elegir la fecha</span>}
       </div>
     </div>
   );

@@ -65,7 +65,7 @@ export default function Login() {
         {signupDone ? (
           <div className="text-center">
             <p className="text-sm text-ink-primary">
-              Te mandamos un mail para confirmar tu cuenta. Confirmalo y después volvé para iniciar sesión.
+              Te enviamos un correo para confirmar tu cuenta. Confírmalo y después vuelve para iniciar sesión.
             </p>
             <button
               onClick={() => {
@@ -123,7 +123,7 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-lg border border-line bg-bg-base px-3 py-2.5 text-sm text-ink-primary outline-none focus:border-lime"
-                  placeholder="vos@email.com"
+                  placeholder="tu@email.com"
                 />
               </div>
 

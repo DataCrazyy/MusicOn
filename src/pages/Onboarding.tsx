@@ -53,23 +53,23 @@ export default function Onboarding() {
         </div>
 
         <h1 className="text-center font-display text-xl font-bold text-ink-primary">¡Bienvenido/a!</h1>
-        <p className="mt-1 text-center text-sm text-ink-muted">Contanos un poco de vos para arrancar.</p>
+        <p className="mt-1 text-center text-sm text-ink-muted">Cuéntanos un poco sobre ti para empezar.</p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-5">
           <div>
-            <label className="mb-1 block text-xs font-semibold text-ink-muted">Elegí tu nombre o nickname</label>
+            <label className="mb-1 block text-xs font-semibold text-ink-muted">Elige tu nombre o nickname</label>
             <input
               type="text"
               required
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              placeholder="Como querés que te vean"
+              placeholder="Cómo quieres que te vean"
               className="w-full rounded-lg border border-line bg-bg-base px-3 py-2.5 text-sm text-ink-primary outline-none focus:border-lime"
             />
           </div>
 
           <div>
-            <p className="mb-2 text-xs font-semibold text-ink-muted">¿Qué querés hacer en MusicOn?</p>
+            <p className="mb-2 text-xs font-semibold text-ink-muted">¿Qué quieres hacer en MusicOn?</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <button
                 type="button"

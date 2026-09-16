@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { BadgeCheck, MapPin, Users } from 'lucide-react';
 import type { DbArtist } from '@/lib/artists';
+import { formatPrice } from '@/lib/format';
 
 export default function ArtistCard({ artist }: { artist: DbArtist }) {
   return (
@@ -27,7 +28,7 @@ export default function ArtistCard({ artist }: { artist: DbArtist }) {
             {artist.name}
           </h3>
           <span className="whitespace-nowrap text-sm font-bold text-ink-primary">
-            ${artist.price_from}
+            {formatPrice(artist.price_from)}
             <span className="text-xs font-normal text-ink-muted">
               /{artist.price_per === 'hour' ? 'hora' : 'evento'}
             </span>

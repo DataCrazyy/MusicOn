@@ -5,6 +5,7 @@ import { getArtistByOwner } from '@/lib/artists';
 import { listBookingsAsClient, listBookingsForArtist, type BookingWithArtist, type BookingWithClient } from '@/lib/bookings';
 import { listUnreadBookingIds } from '@/lib/messages';
 import BookingMessages from '@/components/BookingMessages';
+import EmptyState from '@/components/EmptyState';
 
 type Conversation = {
   bookingId: string;
@@ -17,11 +18,11 @@ type Conversation = {
 const APPROVED = new Set(['confirmed', 'in_escrow', 'completed']);
 
 const QUICK_REPLIES = [
-  '¿Tenés disponibilidad?',
+  '¿Tienes disponibilidad?',
   '¿Cuál es el precio?',
-  '¿Incluís equipo de sonido?',
-  '¿Podés hacer un set personalizado?',
-  '¿Viajás a otra ciudad?',
+  '¿Incluyes equipo de sonido?',
+  '¿Puedes hacer un set personalizado?',
+  '¿Viajas a otra ciudad?',
 ];
 
 export default function Chat() {
@@ -70,6 +71,10 @@ export default function Chat() {
   }
 
   useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -81,6 +86,16 @@ export default function Chat() {
       next.delete(bookingId);
       return next;
     });
+  }
+
+  if (!user) {
+    return (
+      <EmptyState
+        icon={<MessageCircle className="h-7 w-7" />}
+        title="Aquí podrás conversar con tus artistas"
+        description="Cuando inicies una conversación relacionada con una solicitud, podrás comunicarte directamente con el artista y consultar los detalles del servicio."
+      />
+    );
   }
 
   if (loading) {
@@ -95,13 +110,13 @@ export default function Chat() {
 
   if (conversations.length === 0) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-2 px-4 text-center">
-        <MessageCircle className="h-8 w-8 text-ink-muted" />
-        <p className="font-semibold text-ink-primary">Todavía no tenés conversaciones</p>
-        <p className="max-w-sm text-sm text-ink-muted">
-          Se habilitan acá apenas una reserva queda confirmada. Mientras tanto podés consultar a los artistas desde tus Solicitudes.
-        </p>
-      </div>
+      <EmptyState
+        icon={<MessageCircle className="h-7 w-7" />}
+        title="Todavía no tienes conversaciones"
+        description="Se habilitan aquí apenas una reserva queda confirmada. Mientras tanto puedes consultar a los artistas desde tus Solicitudes."
+        ctaLabel="Ver mis solicitudes"
+        ctaTo="/solicitudes"
+      />
     );
   }
 
@@ -170,7 +185,7 @@ export default function Chat() {
           </>
         ) : (
           <div className="flex flex-1 items-center justify-center text-sm text-ink-muted">
-            Elegí una conversación
+            Elige una conversación
           </div>
         )}
       </div>

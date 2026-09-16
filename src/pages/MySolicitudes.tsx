@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Check, X, Calendar, MapPin, Clock, Users, MessageCircle } from 'lucide-react';
+import { Loader2, Check, X, Calendar, MapPin, Clock, Users, MessageCircle, ClipboardList } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { getArtistByOwner, addBlockedDate, type DbArtist } from '@/lib/artists';
+import { formatPrice } from '@/lib/format';
 import {
   listBookingsAsClient,
   listBookingsForArtist,
@@ -12,6 +13,7 @@ import {
 } from '@/lib/bookings';
 import { listUnreadBookingIds } from '@/lib/messages';
 import BookingMessages from '@/components/BookingMessages';
+import EmptyState from '@/components/EmptyState';
 
 const STATUS_LABELS: Record<BookingStatus, { label: string; className: string }> = {
   pending: { label: 'Pendiente', className: 'bg-amber/15 text-amber' },
@@ -86,6 +88,10 @@ export default function MySolicitudes() {
   }
 
   useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -123,6 +129,16 @@ export default function MySolicitudes() {
       next.delete(bookingId);
       return next;
     });
+  }
+
+  if (!user) {
+    return (
+      <EmptyState
+        icon={<ClipboardList className="h-7 w-7" />}
+        title="Aquí aparecerán tus solicitudes"
+        description="Cuando solicites un artista o servicio, podrás consultar aquí el estado de tus solicitudes, contrataciones y reservas."
+      />
+    );
   }
 
   if (loading) {
@@ -177,7 +193,7 @@ export default function MySolicitudes() {
                           <Users className="h-3.5 w-3.5" /> {b.guest_range}
                         </p>
                       )}
-                      <p className="mt-1 text-sm font-semibold text-ink-primary">Precio de referencia: ${b.total}</p>
+                      <p className="mt-1 text-sm font-semibold text-ink-primary">Precio de referencia: {formatPrice(b.total)}</p>
                       {b.notes && <p className="mt-1 text-sm text-ink-muted">Tu mensaje: "{b.notes}"</p>}
                       {b.artist_response && (b.status === 'confirmed' || b.status === 'cancelled') && (
                         <div
@@ -267,7 +283,7 @@ export default function MySolicitudes() {
                             <Users className="h-3.5 w-3.5" /> {b.guest_range}
                           </p>
                         )}
-                        <p className="mt-1 text-sm font-semibold text-ink-primary">Precio de referencia: ${b.total}</p>
+                        <p className="mt-1 text-sm font-semibold text-ink-primary">Precio de referencia: {formatPrice(b.total)}</p>
                         {b.notes && <p className="mt-1 text-sm text-ink-muted">"{b.notes}"</p>}
                       </div>
 

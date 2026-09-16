@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { getArtistById, type DbArtist } from '@/lib/artists';
+import { formatPrice } from '@/lib/format';
 import { createBookingRequest } from '@/lib/bookings';
 import AvailabilityCalendar from '@/components/AvailabilityCalendar';
 
@@ -53,11 +54,11 @@ export default function RequestBooking() {
     setError(null);
 
     if (!eventDate) {
-      setError('Elegí una fecha en el calendario.');
+      setError('Elige una fecha en el calendario.');
       return;
     }
     if (isDateOccupied || isWeeklyOff) {
-      setError(`Esa fecha ya no está disponible para ${artist.name}. Elegí otra en el calendario.`);
+      setError(`Esa fecha ya no está disponible para ${artist.name}. Elige otra en el calendario.`);
       return;
     }
 
@@ -135,7 +136,7 @@ export default function RequestBooking() {
           <div>
             <p className="font-display text-lg font-bold text-ink-primary">{artist.name}</p>
             <p className="text-sm text-ink-muted">
-              ${artist.price_from}/{artist.price_per === 'hour' ? 'hora' : 'evento'} · {artist.city}
+              {formatPrice(artist.price_from)}/{artist.price_per === 'hour' ? 'hora' : 'evento'} · {artist.city}
             </p>
           </div>
         </div>
@@ -163,7 +164,7 @@ export default function RequestBooking() {
 
           <div>
             <label className="mb-1 block text-xs font-semibold text-ink-muted">
-              Fecha del evento — elegí un día libre
+              Fecha del evento — elige un día libre
             </label>
             <AvailabilityCalendar
               blockedDates={artist.blocked_dates ?? []}
