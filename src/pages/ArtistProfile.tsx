@@ -145,7 +145,7 @@ export default function ArtistProfile() {
                     /{artist.price_per === 'hour' ? 'hora' : 'evento'}
                   </span>
                 </p>
-                {artist.price_per === 'hour' && artist.duration_hours && (
+                {artist.price_per === 'event' && artist.duration_hours && (
                   <p className="text-xs text-ink-muted">Show de ~{artist.duration_hours}h</p>
                 )}
               </div>

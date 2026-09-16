@@ -252,7 +252,9 @@ export default function BecomeArtist() {
         photo_url: photoUrl,
         price_from: Number(priceFrom),
         price_per: pricePer,
-        duration_hours: pricePer === 'hour' && durationHours ? Number(durationHours) : null,
+        // La duración solo aplica cuando el precio es por evento — al cobrar por hora, la
+        // cantidad de horas la define cada reserva puntual, no el perfil del artista.
+        duration_hours: pricePer === 'event' && durationHours ? Number(durationHours) : null,
         members: Number(members),
         travel_radius_km: Number(travelRadiusKm),
         tags: tagsInput
@@ -464,7 +466,9 @@ export default function BecomeArtist() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-muted">Precio desde (Bs)</label>
+              <label className="mb-1 block text-xs font-semibold text-ink-muted">
+                {pricePer === 'hour' ? 'Precio por hora (Bs)' : 'Precio del evento (Bs)'}
+              </label>
               <input
                 required
                 type="number"
@@ -487,7 +491,7 @@ export default function BecomeArtist() {
             </div>
           </div>
 
-          {pricePer === 'hour' && (
+          {pricePer === 'event' ? (
             <div>
               <label className="mb-1 block text-xs font-semibold text-ink-muted">
                 Duración estimada del show (horas)
@@ -505,6 +509,10 @@ export default function BecomeArtist() {
                 Así el cliente sabe cuántas horas suele durar tu show y calcula el costo total.
               </p>
             </div>
+          ) : (
+            <p className="text-xs text-ink-muted">
+              La duración exacta se define en cada reserva puntual, no aquí en tu perfil.
+            </p>
           )}
 
           <div className="grid grid-cols-2 gap-3">
