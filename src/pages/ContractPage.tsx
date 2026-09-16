@@ -26,6 +26,7 @@ import {
   signContractAsArtist,
   markBookingPaidAndConfirmed,
   applyPostSignatureChange,
+  contractNumberFor,
   type Contract,
 } from '@/lib/contracts';
 import {
@@ -67,6 +68,9 @@ export default function ContractPage() {
   const [modSaving, setModSaving] = useState(false);
   const [modError, setModError] = useState<string | null>(null);
   const [clientName, setClientName] = useState('Cliente');
+  // 74/75: el artista primero revisa y confirma las condiciones, y recien ahi pasa
+  // a la pantalla de firma -- nunca un formulario de firma directo sin ese paso.
+  const [artistConfirmedConditions, setArtistConfirmedConditions] = useState(false);
 
   const isClient = !!user && !!booking && booking.client_id === user.id;
   const isArtistOwner = !!user && !!booking && booking.artist?.owner_id === user.id;
@@ -75,6 +79,7 @@ export default function ContractPage() {
     if (!bookingId) return;
     setLoading(true);
     setError(null);
+    setArtistConfirmedConditions(false);
     try {
       const b = await getBookingById(bookingId);
       setBooking(b);
@@ -123,7 +128,8 @@ export default function ContractPage() {
           userId: booking.client_id,
           bookingId: booking.id,
           type: 'contract_signed',
-          message: 'El artista firmó el contrato. Tu contrato está pendiente de firma.',
+          message:
+            '🔔 El artista ha firmado el contrato — El contrato de tu reserva está listo para que lo revises y firmes.',
           link: `/contrato/${booking.id}`,
         });
       }
@@ -294,7 +300,6 @@ export default function ContractPage() {
   // El artista firma primero: el cliente recién ve su propio formulario cuando el artista ya firmó.
   const canSignAsArtist = isArtistOwner && !artistSigned && !isPaidAndConfirmed;
   const canSignAsClient = isClient && artistSigned && !clientSigned && !isPaidAndConfirmed;
-  const canSign = canSignAsArtist || canSignAsClient;
   const waitingOnArtistSignature = isClient && !artistSigned && !isPaidAndConfirmed;
   const canPay = isClient && artistSigned && clientSigned && !isPaidAndConfirmed;
   // Una vez que el servicio se realizó, la contratación queda finalizada: ya no se
@@ -431,13 +436,11 @@ export default function ContractPage() {
           </div>
         )}
 
-        {/* Firmar — 57/59: siempre hay una acción siguiente clara, y el botón de firma
-            queda deshabilitado hasta marcar la casilla de confirmación. */}
-        {canSign && (
+        {/* Firma del cliente — 57/59: acción siempre visible, botón deshabilitado hasta
+            marcar la casilla de confirmación. */}
+        {canSignAsClient && (
           <div className="mb-6 rounded-card border border-line bg-bg-surface p-5 print:hidden">
-            <h2 className="mb-1 text-sm font-bold text-ink-primary">
-              {isArtistOwner ? 'Revisa y confirma los detalles de la contratación' : 'Validar y firmar contrato'}
-            </h2>
+            <h2 className="mb-1 text-sm font-bold text-ink-primary">Validar y firmar contrato</h2>
             <p className="mb-3 text-xs text-ink-muted">
               He revisado los datos de la contratación y confirmo que son correctos.
             </p>
@@ -463,8 +466,120 @@ export default function ContractPage() {
               className="mt-4 flex w-full items-center justify-center gap-2 rounded-pill bg-lime px-4 py-3 text-sm font-bold text-bg-base transition hover:bg-lime-dark disabled:opacity-60"
             >
               {signing && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isArtistOwner ? 'Firmar y confirmar' : 'Firmar y enviar contrato'}
+              Firmar y enviar contrato
             </button>
+          </div>
+        )}
+
+        {/* Flujo del artista — 74/75: primero revisar y confirmar las condiciones de
+            la contratación como paso explícito, y recién después pasar a la firma. */}
+        {canSignAsArtist && !artistConfirmedConditions && (
+          <div className="mb-6 rounded-card border border-line bg-bg-surface p-5 print:hidden">
+            <h2 className="mb-1 text-sm font-bold text-ink-primary">Confirmar condiciones de la contratación</h2>
+            <p className="mb-3 text-xs text-ink-muted">
+              Revisa los datos del servicio y el contrato digital arriba antes de continuar.
+            </p>
+            <label className="flex items-start gap-2 text-xs text-ink-muted">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-lime"
+              />
+              Confirmo que he revisado los datos y acepto las condiciones de esta contratación
+            </label>
+            <button
+              onClick={() => {
+                if (!acceptedTerms) return;
+                setArtistConfirmedConditions(true);
+              }}
+              disabled={!acceptedTerms}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-pill bg-lime px-4 py-3 text-sm font-bold text-bg-base transition hover:bg-lime-dark disabled:opacity-60"
+            >
+              Confirmar y continuar a firma
+            </button>
+            <Link
+              to={`/chat?b=${booking.id}`}
+              className="mt-3 block text-center text-xs font-semibold text-ink-muted hover:text-ink-primary"
+            >
+              ¿Algo no está correcto? Solicitar cambio
+            </Link>
+          </div>
+        )}
+
+        {/* 76: formulario de firma del artista, equivalente al del cliente — mismo
+            contrato, con fecha y hora automáticas. */}
+        {canSignAsArtist && artistConfirmedConditions && (
+          <div className="mb-6 rounded-card border border-line bg-bg-surface p-5 print:hidden">
+            <h2 className="mb-1 text-sm font-bold text-ink-primary">Firma del contrato</h2>
+            <p className="mb-3 text-xs text-ink-muted">
+              Contrato {contractNumberFor(booking.id)} — al firmar, aceptas las condiciones acordadas para esta
+              contratación.
+            </p>
+            <dl className="mb-3 grid grid-cols-3 gap-2 text-xs">
+              <div className="min-w-0">
+                <dt className="font-semibold text-ink-muted">Nombre</dt>
+                <dd className="truncate text-ink-primary">{fullName || '—'}</dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="font-semibold text-ink-muted">Fecha</dt>
+                <dd className="text-ink-primary">{new Date().toLocaleDateString('es-BO')}</dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="font-semibold text-ink-muted">Hora</dt>
+                <dd className="text-ink-primary">
+                  {new Date().toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })}
+                </dd>
+              </div>
+            </dl>
+            <label className="mb-1 block text-xs font-semibold text-ink-muted">Firma (nombre completo)</label>
+            <input
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="mb-3 w-full rounded-lg border border-line bg-bg-base px-3 py-2.5 text-sm text-ink-primary outline-none focus:border-lime"
+              placeholder="Escribe tu nombre completo"
+            />
+            <label className="flex items-start gap-2 text-xs text-ink-muted">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-lime"
+              />
+              Acepto las condiciones del contrato
+            </label>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setArtistConfirmedConditions(false)}
+                className="rounded-pill border border-line px-4 py-3 text-xs font-bold text-ink-primary hover:border-lime/40"
+              >
+                Volver
+              </button>
+              <button
+                onClick={handleSign}
+                disabled={signing || !fullName.trim() || !acceptedTerms}
+                className="flex flex-1 items-center justify-center gap-2 rounded-pill bg-lime px-4 py-3 text-sm font-bold text-bg-base transition hover:bg-lime-dark disabled:opacity-60"
+              >
+                {signing && <Loader2 className="h-4 w-4 animate-spin" />}
+                Firmar contrato
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 77: confirmación inmediata y persistente tras la firma del artista — nunca
+            vuelve a la lista de solicitudes, se queda mostrando el estado del contrato
+            hasta que el cliente también firme. */}
+        {isArtistOwner && artistSigned && !clientSigned && !isPaidAndConfirmed && (
+          <div className="mb-6 rounded-card border border-lime/30 bg-lime/10 p-5 text-sm print:hidden">
+            <p className="flex items-center gap-2 font-bold text-lime">
+              <CheckCircle2 className="h-5 w-5 flex-shrink-0" /> Contrato firmado correctamente
+            </p>
+            <p className="mt-1 text-xs font-semibold text-ink-primary">✓ Firmado por el artista</p>
+            <p className="mt-2 text-xs text-ink-muted">
+              El contrato ha sido enviado al cliente para su revisión y firma.
+            </p>
           </div>
         )}
 
