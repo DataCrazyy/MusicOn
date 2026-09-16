@@ -16,8 +16,23 @@ export type BookingWithArtist = {
   subtotal: number;
   total: number;
   status: BookingStatus;
+  event_lat: number | null;
+  event_lng: number | null;
+  paid_at: string | null;
   created_at: string;
-  artist: { name: string; photo_url: string | null; owner_id: string | null } | null;
+  artist: {
+    name: string;
+    photo_url: string | null;
+    owner_id: string | null;
+    city?: string;
+    genre?: string;
+    members?: number;
+    equipment?: string[];
+    equipment_other?: string | null;
+    price_from?: number;
+    price_per?: 'hour' | 'event';
+  } | null;
+  client?: { full_name: string | null } | null;
 };
 
 export type BookingWithClient = {
@@ -77,6 +92,19 @@ export async function createBookingRequest(
 
   if (error) throw error;
   return data;
+}
+
+export async function getBookingById(bookingId: string): Promise<BookingWithArtist> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select(
+      '*, artist:artists(name, photo_url, owner_id, city, genre, members, equipment, equipment_other, price_from, price_per), client:profiles(full_name)'
+    )
+    .eq('id', bookingId)
+    .single();
+
+  if (error) throw error;
+  return data as unknown as BookingWithArtist;
 }
 
 export async function listBookingsAsClient(clientId: string): Promise<BookingWithArtist[]> {

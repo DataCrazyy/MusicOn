@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Loader2, MessageCircle, ArrowLeft, Check, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Loader2, MessageCircle, ArrowLeft, Check, X, FileSignature } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { getArtistByOwner, addBlockedDate } from '@/lib/artists';
 import {
@@ -245,6 +246,15 @@ export default function Chat() {
                   total={active.total}
                   onUpdated={load}
                 />
+              )}
+
+              {active.status === 'confirmed' && !active.isArtistSide && (
+                <Link
+                  to={`/contrato/${active.bookingId}`}
+                  className="mt-4 flex items-center justify-center gap-1.5 rounded-pill bg-lime px-4 py-2.5 text-sm font-bold text-bg-base hover:bg-lime-dark"
+                >
+                  <FileSignature className="h-4 w-4" /> ¡{active.name} aceptó! Confirmar contratación
+                </Link>
               )}
 
               {canRespond && !responding && (

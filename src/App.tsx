@@ -12,6 +12,7 @@ import MySolicitudes from '@/pages/MySolicitudes';
 import Account from '@/pages/Account';
 import Onboarding from '@/pages/Onboarding';
 import Chat from '@/pages/Chat';
+import ContractPage from '@/pages/ContractPage';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/artista/nuevo" element={<RequireAuth><BecomeArtist /></RequireAuth>} />
           <Route path="/reservar/:artistId" element={<RequireAuth><RequestBooking /></RequireAuth>} />
+          <Route path="/contrato/:bookingId" element={<RequireAuth><ContractPage /></RequireAuth>} />
           <Route path="/solicitudes" element={<MySolicitudes />} />
           <Route path="/chat" element={<Chat />} />
           <Route path="/cuenta" element={<RequireAuth><Account /></RequireAuth>} />

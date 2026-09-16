@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Loader2, Check, X, Calendar, MapPin, Clock, Users, MessageCircle, ClipboardList } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { getArtistByOwner, addBlockedDate, type DbArtist } from '@/lib/artists';
@@ -210,6 +211,14 @@ export default function MySolicitudes() {
                           </p>
                           <p className="mt-1 text-ink-primary">"{b.artist_response}"</p>
                         </div>
+                      )}
+                      {b.status === 'confirmed' && (
+                        <Link
+                          to={`/contrato/${b.id}`}
+                          className="mt-3 inline-flex items-center gap-1.5 rounded-pill bg-lime px-4 py-2 text-xs font-bold text-bg-base hover:bg-lime-dark"
+                        >
+                          Confirmar contratación
+                        </Link>
                       )}
                     </div>
                     <div className="flex flex-shrink-0 flex-col items-end gap-2">
