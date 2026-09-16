@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Loader2, Sparkles } from 'lucide-react';
+import { Search, Loader2, Sparkles, X } from 'lucide-react';
 import ArtistCardLite from '@/components/ArtistCardLite';
 import { listArtists, type DbArtist } from '@/lib/artists';
 
-type SortBy = 'price_asc' | 'price_desc' | 'recent';
+type SortBy = 'price_asc' | 'price_desc' | 'default';
 
 const BUDGETS = [
   { label: 'Cualquier presupuesto', value: Infinity },
@@ -11,6 +11,13 @@ const BUDGETS = [
   { label: 'Hasta Bs 1.000', value: 1000 },
   { label: 'Hasta Bs 2.000', value: 2000 },
   { label: 'Hasta Bs 5.000', value: 5000 },
+];
+
+const MEMBER_OPTIONS = [
+  { label: 'Cualquier cantidad de personas', value: 0 },
+  { label: 'Solista (1)', value: 1 },
+  { label: 'Dúo (2)', value: 2 },
+  { label: 'Banda (3 o más)', value: 3 },
 ];
 
 export default function Explore() {
@@ -22,7 +29,8 @@ export default function Explore() {
   const [city, setCity] = useState('All');
   const [genre, setGenre] = useState('All');
   const [maxBudget, setMaxBudget] = useState(Infinity);
-  const [sort, setSort] = useState<SortBy>('recent');
+  const [sort, setSort] = useState<SortBy>('default');
+  const [minMembers, setMinMembers] = useState(0);
 
   useEffect(() => {
     listArtists()
@@ -49,12 +57,25 @@ export default function Explore() {
       const matchesCity = city === 'All' || a.city === city;
       const matchesGenre = genre === 'All' || a.genre === genre;
       const matchesBudget = a.price_from <= maxBudget;
-      return matchesQuery && matchesCity && matchesGenre && matchesBudget;
+      const matchesMembers =
+        minMembers === 0 || (minMembers === 3 ? a.members >= 3 : a.members === minMembers);
+      return matchesQuery && matchesCity && matchesGenre && matchesBudget && matchesMembers;
     });
 
     return applySort(result);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [artists, query, city, genre, maxBudget, sort]);
+  }, [artists, query, city, genre, maxBudget, minMembers, sort]);
+
+  const hasActiveFilters =
+    query.trim() !== '' || city !== 'All' || genre !== 'All' || maxBudget !== Infinity || minMembers !== 0;
+
+  function clearFilters() {
+    setQuery('');
+    setCity('All');
+    setGenre('All');
+    setMaxBudget(Infinity);
+    setMinMembers(0);
+  }
 
   // Si los filtros no dan resultados, sugerimos los artistas más cercanos posible
   // (relajando primero el presupuesto y el género, para no dejar al cliente sin nada que ver).
@@ -129,14 +150,36 @@ export default function Explore() {
           </select>
 
           <select
+            value={minMembers}
+            onChange={(e) => setMinMembers(Number(e.target.value))}
+            className="rounded-pill border border-line bg-bg-surface px-4 py-2.5 text-sm text-ink-primary outline-none focus:border-lime"
+          >
+            {MEMBER_OPTIONS.map((m) => (
+              <option key={m.label} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+
+          <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortBy)}
             className="rounded-pill border border-line bg-bg-surface px-4 py-2.5 text-sm text-ink-primary outline-none focus:border-lime"
           >
-            <option value="recent">Más recientes</option>
+            <option value="default">Recomendados</option>
             <option value="price_asc">Precio: menor a mayor</option>
             <option value="price_desc">Precio: mayor a menor</option>
           </select>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="flex items-center gap-1.5 rounded-pill border border-line px-4 py-2.5 text-sm font-semibold text-ink-muted transition hover:border-lime/40 hover:text-ink-primary"
+            >
+              <X className="h-3.5 w-3.5" /> Limpiar filtros
+            </button>
+          )}
         </div>
 
         {/* Content */}
