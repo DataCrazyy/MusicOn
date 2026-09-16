@@ -39,6 +39,7 @@ import {
 } from '@/lib/negotiation';
 import { STATUS_LABELS } from '@/lib/bookingStatus';
 import Stepper, { type Step } from '@/components/Stepper';
+import ContractDocument from '@/components/ContractDocument';
 
 export default function ContractPage() {
   const { bookingId } = useParams<{ bookingId: string }>();
@@ -61,6 +62,7 @@ export default function ContractPage() {
   const [modValue, setModValue] = useState('');
   const [modMessage, setModMessage] = useState('');
   const [modSaving, setModSaving] = useState(false);
+  const [clientName, setClientName] = useState('Cliente');
 
   const isClient = !!user && !!booking && booking.client_id === user.id;
   const isArtistOwner = !!user && !!booking && booking.artist?.owner_id === user.id;
@@ -72,8 +74,9 @@ export default function ContractPage() {
     try {
       const b = await getBookingById(bookingId);
       setBooking(b);
-      const clientName = b.client?.full_name || profile?.full_name || 'Cliente';
-      const terms = buildContractTerms(b, clientName);
+      const resolvedClientName = b.client?.full_name || profile?.full_name || 'Cliente';
+      setClientName(resolvedClientName);
+      const terms = buildContractTerms(b, resolvedClientName);
       let c = await ensureContract(bookingId, terms);
       // Antes de la primera firma, mantenemos el contrato sincronizado si la negociación
       // cambió algo (precio, fecha, duración, etc.) desde que se generó por última vez.
@@ -356,29 +359,13 @@ export default function ContractPage() {
           </dl>
         </div>
 
-        {/* Contrato digital */}
-        <div className="mb-6 rounded-card border border-line bg-bg-surface p-5">
-          <h2 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-ink-primary">
-            <FileSignature className="h-4 w-4" /> Contrato digital
-          </h2>
-          <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg bg-bg-base p-4 text-xs leading-relaxed text-ink-muted print:max-h-none print:overflow-visible">
-            {contract.terms}
-          </pre>
-
-          <div className="mt-4 grid grid-cols-1 gap-3 border-t border-line pt-4 text-xs sm:grid-cols-2">
-            <div>
-              <p className="font-semibold text-ink-muted">Firma del cliente</p>
-              <p className="text-ink-primary">
-                {contract.client_signed_name ? `${contract.client_signed_name} ✓` : 'Pendiente'}
-              </p>
-            </div>
-            <div>
-              <p className="font-semibold text-ink-muted">Firma del artista</p>
-              <p className="text-ink-primary">
-                {contract.artist_signed_name ? `${contract.artist_signed_name} ✓` : 'Pendiente'}
-              </p>
-            </div>
-          </div>
+        {/* Contrato digital — documento visual profesional, con las mismas cláusulas
+            configurables (lib/contractClauses.ts) que el texto guardado en contracts.terms */}
+        <div className="mb-6 flex items-center gap-1.5 text-sm font-bold text-ink-primary print:hidden">
+          <FileSignature className="h-4 w-4" /> Contrato digital
+        </div>
+        <div className="mb-6 max-h-[70vh] overflow-y-auto print:max-h-none print:overflow-visible">
+          <ContractDocument booking={booking} clientName={clientName} contract={contract} />
         </div>
 
         {/* Esperando que el artista firme primero */}

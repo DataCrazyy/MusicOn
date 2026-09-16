@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { formatPrice, computeEndTime } from './format';
 import type { BookingWithArtist } from './bookings';
+import { CONTRACT_CLAUSES } from './contractClauses';
 
 export type ContractVersionSnapshot = {
   version: number;
@@ -27,17 +28,22 @@ export type Contract = {
   created_at: string;
 };
 
-/**
- * Arma el texto del contrato digital con la estructura completa de 11 secciones,
- * a partir de los datos ya cargados de la solicitud — el cliente nunca tiene que
- * volver a escribirlos. El precio final es siempre bookings.total (el acordado
- * tras la negociación estructurada), nunca un valor tomado del chat.
- */
-export function buildContractTerms(
+export type ContractFields = {
+  equipmentList: string;
+  endTime: string | null;
+  publishedPrice: number;
+  originalProposed: number;
+  negotiated: boolean;
+  locationParts: string[];
+};
+
+/** Datos derivados de la reserva que tanto el texto plano del contrato como el
+ * documento visual (ContractDocument) necesitan — una sola fuente para no duplicar
+ * la lógica de armado en dos lugares distintos. */
+export function getContractFields(
   booking: BookingWithArtist,
-  clientName: string,
   opts?: { originalProposedPrice?: number }
-): string {
+): ContractFields {
   const artist = booking.artist;
   const equipmentList =
     artist?.equipment && artist.equipment.length > 0
@@ -57,58 +63,72 @@ export function buildContractTerms(
       : null,
   ].filter((p): p is string => !!p);
 
-  return `CONTRATO DE PRESTACIÓN DE SERVICIO MUSICAL
+  return { equipmentList, endTime, publishedPrice, originalProposed, negotiated, locationParts };
+}
 
-1. IDENTIFICACIÓN DE LAS PARTES
+/** Número de contrato legible, derivado del id de la reserva (estable, sin contador aparte). */
+export function contractNumberFor(bookingId: string): string {
+  return `#RES-${bookingId.replace(/-/g, '').slice(0, 6).toUpperCase()}`;
+}
+
+/**
+ * Arma el texto plano del contrato (guardado en contracts.terms) a partir de los
+ * datos ya cargados de la solicitud y de la misma lista de cláusulas que usa el
+ * documento visual — el cliente nunca tiene que volver a escribirlos, y las
+ * cláusulas nunca quedan duplicadas entre el texto y la vista.
+ */
+export function buildContractTerms(
+  booking: BookingWithArtist,
+  clientName: string,
+  opts?: { originalProposedPrice?: number }
+): string {
+  const artist = booking.artist;
+  const { equipmentList, endTime, publishedPrice, originalProposed, negotiated, locationParts } =
+    getContractFields(booking, opts);
+
+  const clausesText = CONTRACT_CLAUSES.map((cl) => `CLÁUSULA ${cl.number} — ${cl.title}\n${cl.body}`).join('\n\n');
+
+  return `CONTRATO DE PRESTACIÓN DE SERVICIOS MUSICALES
+${contractNumberFor(booking.id)}
+
+IDENTIFICACIÓN DE LAS PARTES
 Cliente: ${clientName}
 Artista/Grupo: ${artist?.name ?? '—'}${artist?.members ? ` (${artist.members} integrante(s))` : ''}
 
-2. OBJETO DEL CONTRATO
-El artista se compromete a prestar un servicio de presentación musical en vivo para el
-evento tipo "${booking.event_type}" del cliente, bajo las condiciones detalladas en este documento.
-
-3. FECHA Y HORARIO
+SERVICIO CONTRATADO
+Servicio: ${booking.event_type}
 Fecha: ${booking.event_date}
-Hora de inicio: ${booking.start_time ?? '—'}
+Horario: ${booking.start_time ?? '—'}
 Duración estimada: ${booking.duration_hours ? `${booking.duration_hours} horas` : '—'}
 Hora estimada de finalización: ${endTime ?? '—'}
 
-4. LUGAR
+LUGAR DEL EVENTO
 ${locationParts.length > 0 ? locationParts.join(' — ') : '—'}
 
-5. CANTIDAD DE PERSONAS
+CANTIDAD DE PERSONAS
 Integrantes del artista: ${artist?.members ?? '—'}
 Asistentes estimados: ${booking.guest_range ?? '—'}
 
-6. EQUIPAMIENTO
+EQUIPAMIENTO
 ${equipmentList}
 
-7. PRECIO
+CONDICIONES ECONÓMICAS
 Precio publicado: ${formatPrice(publishedPrice)}
-Precio originalmente solicitado: ${formatPrice(originalProposed)}
+Precio inicialmente propuesto: ${formatPrice(originalProposed)}
 Precio final acordado: ${formatPrice(booking.total)}${negotiated ? ' (resultado de la negociación entre las partes)' : ''}
-Otros costos: Ninguno
-Total a pagar: ${formatPrice(booking.total)}
+Otros costos: Bs 0
+TOTAL: ${formatPrice(booking.total)}
 
-8. CONDICIONES DEL SERVICIO
+CONDICIONES DEL SERVICIO
 ${booking.notes?.trim() || 'Sin condiciones adicionales registradas.'}
 
-9. CANCELACIONES
-La cancelación se rige por las políticas generales de la plataforma MusicOn. Cualquier
-cancelación debe comunicarse a la otra parte a través del chat de esta solicitud lo antes posible.
+${clausesText}
 
-10. MODIFICACIONES
-Una vez firmado por ambas partes, este contrato no puede editarse directamente. Cualquier
-cambio debe solicitarse formalmente desde la plataforma ("Solicitar modificación del
-contrato"), requiere la aprobación expresa de la otra parte, y genera una nueva versión de
-este documento que ambas partes deben volver a firmar. Las versiones anteriores quedan
-guardadas como historial y nunca se pierden.
-
-11. ACEPTACIÓN Y FIRMAS
+ACEPTACIÓN Y FIRMAS
 Este documento se genera automáticamente a partir de los datos estructurados de la
-solicitud. La aceptación se registra mediante la firma digital de cada parte dentro de la
-plataforma (nombre completo, fecha y hora de la firma), visibles en la sección de firmas
-de esta pantalla.`;
+solicitud. La aceptación se registra mediante la firma digital de cada parte dentro de
+la plataforma (nombre completo, fecha y hora de la firma), visibles en la sección de
+firmas de esta pantalla.`;
 }
 
 export async function getContractByBooking(bookingId: string): Promise<Contract | null> {
@@ -117,12 +137,6 @@ export async function getContractByBooking(bookingId: string): Promise<Contract 
   return data as Contract | null;
 }
 
-/**
- * Crea el contrato si todavía no existe para esta solicitud (idempotente).
- * Si cliente y artista lo abren casi al mismo tiempo, el segundo insert puede
- * chocar con la restricción unique(booking_id); en ese caso simplemente se
- * relee el contrato ya creado por el otro.
- */
 /** Antes de que nadie haya firmado, es seguro mantener el texto del contrato
  * sincronizado con los datos vigentes de la reserva (p. ej. tras una negociación). */
 export async function updateContractTerms(contractId: string, terms: string): Promise<Contract> {
@@ -131,6 +145,12 @@ export async function updateContractTerms(contractId: string, terms: string): Pr
   return data as Contract;
 }
 
+/**
+ * Crea el contrato si todavía no existe para esta solicitud (idempotente).
+ * Si cliente y artista lo abren casi al mismo tiempo, el segundo insert puede
+ * chocar con la restricción unique(booking_id); en ese caso simplemente se
+ * relee el contrato ya creado por el otro.
+ */
 export async function ensureContract(bookingId: string, terms: string): Promise<Contract> {
   const existing = await getContractByBooking(bookingId);
   if (existing) return existing;
