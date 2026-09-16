@@ -48,8 +48,18 @@ export default function HelpFaqModal({ onClose }: { onClose: () => void }) {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-bg-base/90 backdrop-blur-sm sm:items-center sm:p-4">
-      <div className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-card border border-line bg-bg-surface sm:rounded-card">
+    <div
+      className="fixed inset-0 z-[70] flex items-end justify-center bg-bg-base/90 backdrop-blur-sm sm:items-center sm:p-4"
+      onClick={(e) => {
+        // Cerrar solo si se hace click en el fondo, nunca dentro del panel — así nunca
+        // bloquea sin querer otras acciones (como confirmar una reserva) por error.
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-card border border-line bg-bg-surface pb-[env(safe-area-inset-bottom)] sm:rounded-card sm:pb-0"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between border-b border-line p-5">
           <h2 className="flex items-center gap-2 font-display text-lg font-bold text-ink-primary">
             <HelpCircle className="h-5 w-5 text-lime" /> Preguntas frecuentes
