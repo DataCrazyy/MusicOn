@@ -60,6 +60,7 @@ export default function Chat() {
   const [responding, setResponding] = useState<'confirmed' | 'cancelled' | null>(null);
   const [responseMsg, setResponseMsg] = useState('');
   const [acting, setActing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   async function load() {
     if (!user) return;
@@ -119,6 +120,7 @@ export default function Chat() {
     const all = [...clientSide, ...artistSide];
     setConversations(all);
     setUnreadIds(unread);
+    setRefreshKey((k) => k + 1);
     const requested = searchParams.get('b');
     setOpenId((prev) => {
       if (requested && all.some((c) => c.bookingId === requested)) return requested;
@@ -348,7 +350,7 @@ export default function Chat() {
 
             <div className="flex-1 overflow-hidden px-6 py-2">
               <BookingMessages
-                key={active.bookingId}
+                key={`${active.bookingId}-${refreshKey}`}
                 bookingId={active.bookingId}
                 recipientId={active.recipientId}
                 onRead={() => clearUnread(active.bookingId)}

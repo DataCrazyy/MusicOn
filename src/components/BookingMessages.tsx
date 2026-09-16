@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Loader2, Send } from 'lucide-react';
+import { Loader2, Send, History } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import {
   listMessages,
@@ -8,6 +8,8 @@ import {
   markThreadRead,
   type BookingMessage,
 } from '@/lib/messages';
+import { listNegotiationEvents, FIELD_LABELS, type NegotiationEvent } from '@/lib/negotiation';
+import { formatPrice } from '@/lib/format';
 
 type Props = {
   bookingId: string;
@@ -19,9 +21,32 @@ type Props = {
   bare?: boolean;
 };
 
+function displayValue(field: NegotiationEvent['field'], value: string): string {
+  if (!value) return '—';
+  if (field === 'price') return formatPrice(Number(value));
+  if (field === 'duration_hours') return `${value} horas`;
+  return value;
+}
+
+/** Línea de evento del sistema para el chat — nunca es un mensaje de texto libre,
+ * siempre se arma a partir del dato estructurado de booking_negotiation_events. */
+function eventLine(e: NegotiationEvent): string {
+  const who = e.proposed_role === 'client' ? 'El cliente' : 'El artista';
+  const field = FIELD_LABELS[e.field].toLowerCase();
+  const to = displayValue(e.field, e.new_value);
+  if (e.status === 'accepted') return `${who} propuso cambiar ${field} a ${to} — la otra parte lo aceptó.`;
+  if (e.status === 'rejected') return `${who} propuso cambiar ${field} a ${to} — la otra parte lo rechazó.`;
+  return `${who} propuso cambiar ${field} a ${to}.`;
+}
+
+type TimelineItem =
+  | { kind: 'message'; at: string; message: BookingMessage }
+  | { kind: 'event'; at: string; event: NegotiationEvent };
+
 export default function BookingMessages({ bookingId, recipientId, onRead, suggestions, bare }: Props) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<BookingMessage[]>([]);
+  const [negotiationEvents, setNegotiationEvents] = useState<NegotiationEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
@@ -30,9 +55,12 @@ export default function BookingMessages({ bookingId, recipientId, onRead, sugges
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    listMessages(bookingId)
-      .then((data) => {
-        if (!cancelled) setMessages(data);
+    Promise.all([listMessages(bookingId), listNegotiationEvents(bookingId).catch(() => [])])
+      .then(([data, events]) => {
+        if (!cancelled) {
+          setMessages(data);
+          setNegotiationEvents(events);
+        }
         if (user) {
           markThreadRead(bookingId, user.id).then(() => {
             if (!cancelled) onRead?.();
@@ -75,6 +103,13 @@ export default function BookingMessages({ bookingId, recipientId, onRead, sugges
     }
   }
 
+  const timeline: TimelineItem[] = [
+    ...messages.map((m): TimelineItem => ({ kind: 'message', at: m.created_at, message: m })),
+    ...negotiationEvents
+      .filter((e) => e.status === 'accepted' || e.status === 'rejected')
+      .map((e): TimelineItem => ({ kind: 'event', at: e.resolved_at ?? e.created_at, event: e })),
+  ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
   return (
     <div className={bare ? 'flex h-full flex-col' : 'rounded-lg border border-line bg-bg-raised p-4'}>
       <div className={bare ? 'flex-1 overflow-y-auto px-1 py-3' : 'mb-3 max-h-56 overflow-y-auto pr-1'}>
@@ -83,12 +118,24 @@ export default function BookingMessages({ bookingId, recipientId, onRead, sugges
             <div className="flex items-center gap-2 py-2 text-xs text-ink-muted">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Cargando mensajes...
             </div>
-          ) : messages.length === 0 ? (
+          ) : timeline.length === 0 ? (
             <p className="py-1 text-xs text-ink-muted">
               Todavía no hay mensajes. Escribe tu consulta abajo.
             </p>
           ) : (
-            messages.map((m) => {
+            timeline.map((item) => {
+              if (item.kind === 'event') {
+                return (
+                  <div
+                    key={`ev-${item.event.id}`}
+                    className="flex items-center gap-1.5 self-center rounded-full bg-amber/10 px-3 py-1.5 text-center text-[11px] font-medium text-amber"
+                  >
+                    <History className="h-3 w-3 flex-shrink-0" />
+                    {eventLine(item.event)}
+                  </div>
+                );
+              }
+              const m = item.message;
               const mine = m.sender_id === user?.id;
               return (
                 <div
