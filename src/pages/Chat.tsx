@@ -30,6 +30,7 @@ type Conversation = {
   /** true si el usuario actual es el artista de esta conversación (puede aceptar/rechazar). */
   isArtistSide: boolean;
   artistId: string;
+  createdAt: string;
   eventDate: string;
   startTime: string | null;
   durationHours: number | null;
@@ -90,6 +91,7 @@ export default function Chat() {
         status: b.status,
         isArtistSide: false,
         artistId: b.artist_id,
+        createdAt: b.created_at,
         eventDate: b.event_date,
         startTime: b.start_time,
         durationHours: b.duration_hours,
@@ -113,6 +115,7 @@ export default function Chat() {
         status: b.status,
         isArtistSide: true,
         artistId: b.artist_id,
+        createdAt: b.created_at,
         eventDate: b.event_date,
         startTime: b.start_time,
         durationHours: b.duration_hours,
@@ -125,9 +128,10 @@ export default function Chat() {
         total: b.total,
       }));
 
-    // Orden por fecha de evento (mas proxima primero) en vez de mezclar "primero
-    // todas las de cliente, despues todas las de artista" sin ningun orden real.
-    const all = [...clientSide, ...artistSide].sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+    // Orden por fecha de llegada de la solicitud (mas reciente primero) -- no por
+    // nombre de la otra persona ni por la fecha del evento -- en vez de mezclar
+    // "primero todas las de cliente, despues todas las de artista" sin ningun orden real.
+    const all = [...clientSide, ...artistSide].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     setConversations(all);
     setUnreadIds(unread);
     setRefreshKey((k) => k + 1);
