@@ -38,6 +38,7 @@ import {
   type NegotiableField,
 } from '@/lib/negotiation';
 import { STATUS_LABELS } from '@/lib/bookingStatus';
+import Stepper, { type Step } from '@/components/Stepper';
 
 export default function ContractPage() {
   const { bookingId } = useParams<{ bookingId: string }>();
@@ -265,6 +266,26 @@ export default function ContractPage() {
       ? 'Pendiente de firma del artista'
       : 'Firmado por el artista — pendiente de firma del cliente';
 
+  // Timeline del flujo completo: solicitud → negociación → condiciones acordadas →
+  // firma del artista → firma del cliente → pago → reserva confirmada.
+  const FLOW_STEPS: Step[] = [
+    { key: 'solicitud', label: 'Solicitud' },
+    { key: 'negociacion', label: 'Negociación' },
+    { key: 'acuerdo', label: 'Condiciones acordadas' },
+    { key: 'firma_artista', label: 'Firma del artista' },
+    { key: 'firma_cliente', label: 'Firma del cliente' },
+    { key: 'pago', label: 'Pago y reserva confirmada' },
+  ];
+  const flowStepIndex = booking.status === 'pending'
+    ? 1
+    : !artistSigned
+      ? 2
+      : !clientSigned
+        ? 3
+        : !isPaidAndConfirmed
+          ? 4
+          : 5;
+
   return (
     <div className="min-h-screen bg-bg-base py-8 px-4 sm:px-6 lg:px-8 print:bg-white print:py-0">
       <div className="mx-auto max-w-2xl">
@@ -278,6 +299,10 @@ export default function ContractPage() {
           <span className={`rounded-pill px-3 py-1 text-xs font-semibold ${STATUS_LABELS[booking.status].className}`}>
             {STATUS_LABELS[booking.status].label}
           </span>
+        </div>
+
+        <div className="mb-6 rounded-card border border-line bg-bg-surface p-4 print:hidden">
+          <Stepper steps={FLOW_STEPS} currentIndex={flowStepIndex} />
         </div>
 
         {booking.status === 'completed' && (

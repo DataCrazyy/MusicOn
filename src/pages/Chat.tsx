@@ -15,6 +15,7 @@ import { STATUS_LABELS } from '@/lib/bookingStatus';
 import { listUnreadBookingIds } from '@/lib/messages';
 import BookingMessages from '@/components/BookingMessages';
 import NegotiationPanel from '@/components/NegotiationPanel';
+import Stepper, { type Step } from '@/components/Stepper';
 import EmptyState from '@/components/EmptyState';
 
 type Conversation = {
@@ -41,6 +42,12 @@ type Conversation = {
 // Se ocultan solo las rechazadas; las pendientes también se muestran, para poder
 // negociar y decidir directamente desde el chat sin volver a Solicitudes.
 const VISIBLE_STATUSES = new Set(['pending', 'confirmed', 'in_escrow', 'completed']);
+
+const FLOW_STEPS: Step[] = [
+  { key: 'solicitud', label: 'Solicitud' },
+  { key: 'negociacion', label: 'Negociación' },
+  { key: 'acuerdo', label: 'Condiciones acordadas' },
+];
 
 const QUICK_REPLIES = [
   '¿Tienes disponibilidad?',
@@ -268,6 +275,12 @@ export default function Chat() {
                 <p className="mt-2 text-xs font-semibold text-ink-muted">
                   Chat: Finalizado — {active.eventDate}
                 </p>
+              )}
+
+              {(active.status === 'pending' || active.status === 'confirmed') && (
+                <div className="mt-4">
+                  <Stepper steps={FLOW_STEPS} currentIndex={active.status === 'pending' ? 1 : 2} />
+                </div>
               )}
 
               {(active.status === 'pending' || active.status === 'confirmed') && user && (
