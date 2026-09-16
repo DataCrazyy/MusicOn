@@ -25,6 +25,7 @@ export type Contract = {
   artist_signed_at: string | null;
   version: number;
   previous_versions: ContractVersionSnapshot[];
+  sent_to_client: boolean;
   created_at: string;
 };
 
@@ -189,6 +190,13 @@ export async function signContractAsClient(contractId: string, fullName: string)
   if (error) throw error;
 }
 
+/** El artista firma y despues envia explicitamente el contrato al cliente -- recien
+ * ahi el cliente puede revisarlo y firmarlo (no alcanza con que el artista firme). */
+export async function markContractSentToClient(contractId: string): Promise<void> {
+  const { error } = await supabase.from('contracts').update({ sent_to_client: true }).eq('id', contractId);
+  if (error) throw error;
+}
+
 /** Pago simulado del MVP: no procesa dinero real, solo confirma la contratación. */
 export async function markBookingPaidAndConfirmed(bookingId: string): Promise<void> {
   const { error } = await supabase
@@ -224,6 +232,7 @@ export async function archiveAndBumpContractVersion(contract: Contract, newTerms
       artist_signed_name: null,
       client_signed_at: null,
       artist_signed_at: null,
+      sent_to_client: false,
     })
     .eq('id', contract.id)
     .select()

@@ -14,6 +14,7 @@ import {
   Check,
   X,
   History,
+  Send,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { getBookingById, type BookingWithArtist } from '@/lib/bookings';
@@ -26,6 +27,7 @@ import {
   signContractAsArtist,
   markBookingPaidAndConfirmed,
   applyPostSignatureChange,
+  markContractSentToClient,
   contractNumberFor,
   type Contract,
 } from '@/lib/contracts';
@@ -59,6 +61,7 @@ export default function ContractPage() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [signing, setSigning] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [sendingContract, setSendingContract] = useState(false);
 
   const [events, setEvents] = useState<NegotiationEvent[]>([]);
   const [showModForm, setShowModForm] = useState(false);
@@ -123,19 +126,34 @@ export default function ContractPage() {
           });
         }
       } else if (isArtistOwner) {
+        // El envio al cliente ahora es un paso explicito y separado (ver
+        // handleSendContract) -- firmar ya no notifica ni habilita al cliente por si solo.
         await signContractAsArtist(contract.id, fullName.trim());
-        await createNotification({
-          userId: booking.client_id,
-          bookingId: booking.id,
-          type: 'contract_signed',
-          message:
-            '🔔 El artista ha firmado el contrato — El contrato de tu reserva está listo para que lo revises y firmes.',
-          link: `/contrato/${booking.id}`,
-        });
       }
       await load();
     } finally {
       setSigning(false);
+    }
+  }
+
+  /** Paso explicito -- el artista firma y recien decide enviar el contrato ya
+   * firmado al cliente; hasta entonces el cliente no puede verlo/firmarlo (79). */
+  async function handleSendContract() {
+    if (!contract || !booking) return;
+    setSendingContract(true);
+    try {
+      await markContractSentToClient(contract.id);
+      await createNotification({
+        userId: booking.client_id,
+        bookingId: booking.id,
+        type: 'contract_signed',
+        message:
+          '🔔 El artista ha firmado el contrato — El contrato de tu reserva está listo para que lo revises y firmes.',
+        link: `/contrato/${booking.id}`,
+      });
+      await load();
+    } finally {
+      setSendingContract(false);
     }
   }
 
@@ -296,11 +314,15 @@ export default function ContractPage() {
 
   const artistSigned = !!contract.artist_signed_name;
   const clientSigned = !!contract.client_signed_name;
+  const contractSent = !!contract.sent_to_client;
   const isPaidAndConfirmed = booking.status === 'in_escrow' || booking.status === 'completed';
-  // El artista firma primero: el cliente recién ve su propio formulario cuando el artista ya firmó.
+  // El artista firma primero y despues decide enviarle el contrato al cliente como
+  // paso explicito (handleSendContract) -- el cliente recien puede verlo/firmarlo
+  // cuando el artista ya lo envio, no apenas firmo.
   const canSignAsArtist = isArtistOwner && !artistSigned && !isPaidAndConfirmed;
-  const canSignAsClient = isClient && artistSigned && !clientSigned && !isPaidAndConfirmed;
-  const waitingOnArtistSignature = isClient && !artistSigned && !isPaidAndConfirmed;
+  const canSendContract = isArtistOwner && artistSigned && !contractSent && !isPaidAndConfirmed;
+  const canSignAsClient = isClient && artistSigned && contractSent && !clientSigned && !isPaidAndConfirmed;
+  const waitingOnArtistSignature = isClient && (!artistSigned || !contractSent) && !isPaidAndConfirmed;
   const canPay = isClient && artistSigned && clientSigned && !isPaidAndConfirmed;
   // Una vez que el servicio se realizó, la contratación queda finalizada: ya no se
   // aceptan nuevas modificaciones ni negociaciones sobre ella.
@@ -310,7 +332,9 @@ export default function ContractPage() {
     ? 'Contrato firmado por ambas partes'
     : !artistSigned
       ? 'Pendiente de firma del artista'
-      : 'Firmado por el artista — pendiente de firma del cliente';
+      : !contractSent
+        ? 'Firmado por el artista — pendiente de enviar al cliente'
+        : 'Firmado por el artista — pendiente de firma del cliente';
 
   // Timeline del flujo completo (7 pasos, ver lib/flowSteps.ts): solicitud →
   // negociación → contrato → firma del artista → firma del cliente → pago → reserva
@@ -421,18 +445,53 @@ export default function ContractPage() {
         </div>
 
         {/* Contrato digital — documento visual profesional, con las mismas cláusulas
-            configurables (lib/contractClauses.ts) que el texto guardado en contracts.terms */}
-        <div className="mb-6 flex items-center gap-1.5 text-sm font-bold text-ink-primary print:hidden">
-          <FileSignature className="h-4 w-4" /> Contrato digital
+            configurables (lib/contractClauses.ts) que el texto guardado en contracts.terms.
+            La descarga en PDF está disponible desde que existe el contrato, no solo al
+            cerrarse la reserva — sirve para revisarlo/guardarlo en cualquier etapa. */}
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 print:hidden">
+          <div className="flex items-center gap-1.5 text-sm font-bold text-ink-primary">
+            <FileSignature className="h-4 w-4" /> Contrato digital
+          </div>
+          <button
+            onClick={handleDownloadPdf}
+            className="flex items-center gap-1.5 rounded-pill border border-line px-3 py-1.5 text-xs font-bold text-ink-primary transition hover:border-lime/40"
+          >
+            <Download className="h-3.5 w-3.5" /> Descargar en PDF
+          </button>
         </div>
         <div className="mb-6 max-h-[70vh] overflow-y-auto print:max-h-none print:overflow-visible">
           <ContractDocument booking={booking} clientName={clientName} contract={contract} />
         </div>
 
-        {/* Esperando que el artista firme primero */}
+        {/* Esperando que el artista firme y despues envíe el contrato */}
         {waitingOnArtistSignature && (
           <div className="mb-6 rounded-card border border-line bg-bg-surface p-5 text-sm text-ink-muted print:hidden">
-            Pendiente de firma del artista — cuando {booking.artist?.name} firme el contrato vas a poder revisarlo y firmarlo tú también.
+            {!artistSigned
+              ? `Pendiente de firma del artista — cuando ${booking.artist?.name} firme el contrato y te lo envíe vas a poder revisarlo y firmarlo tú también.`
+              : `${booking.artist?.name} ya firmó el contrato — todavía no te lo envió. En cuanto lo haga vas a poder revisarlo y firmarlo.`}
+          </div>
+        )}
+
+        {/* 74/77: el artista firmó, pero todavía no decidió enviarlo -- acción
+            explícita y siempre visible, nunca se envía solo en silencio. */}
+        {canSendContract && (
+          <div className="mb-6 rounded-card border border-lime/30 bg-lime/10 p-5 print:hidden">
+            <p className="flex items-center gap-2 font-bold text-lime">
+              <CheckCircle2 className="h-5 w-5 flex-shrink-0" /> Contrato firmado correctamente
+            </p>
+            <p className="mt-1 text-xs font-semibold text-ink-primary">✓ Firmado por el artista</p>
+            <p className="mt-2 text-xs text-ink-muted">
+              Revisa el contrato arriba (y descárgalo en PDF si quieres guardarlo) y, cuando esté todo
+              correcto, envíaselo a {clientName} para que lo revise y firme.
+            </p>
+            <button
+              onClick={handleSendContract}
+              disabled={sendingContract}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-pill bg-lime px-4 py-3 text-sm font-bold text-bg-base transition hover:bg-lime-dark disabled:opacity-60"
+            >
+              {sendingContract ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Enviar contrato al cliente
+            </button>
           </div>
         )}
 
@@ -568,17 +627,18 @@ export default function ContractPage() {
           </div>
         )}
 
-        {/* 77: confirmación inmediata y persistente tras la firma del artista — nunca
-            vuelve a la lista de solicitudes, se queda mostrando el estado del contrato
-            hasta que el cliente también firme. */}
-        {isArtistOwner && artistSigned && !clientSigned && !isPaidAndConfirmed && (
+        {/* 77: confirmación persistente tras enviar el contrato — nunca vuelve a la
+            lista de solicitudes, se queda mostrando el estado hasta que el cliente
+            también firme. Antes de enviarlo se muestra el bloque canSendContract de
+            arriba en su lugar. */}
+        {isArtistOwner && artistSigned && contractSent && !clientSigned && !isPaidAndConfirmed && (
           <div className="mb-6 rounded-card border border-lime/30 bg-lime/10 p-5 text-sm print:hidden">
             <p className="flex items-center gap-2 font-bold text-lime">
-              <CheckCircle2 className="h-5 w-5 flex-shrink-0" /> Contrato firmado correctamente
+              <CheckCircle2 className="h-5 w-5 flex-shrink-0" /> Contrato enviado
             </p>
             <p className="mt-1 text-xs font-semibold text-ink-primary">✓ Firmado por el artista</p>
             <p className="mt-2 text-xs text-ink-muted">
-              El contrato ha sido enviado al cliente para su revisión y firma.
+              El contrato ha sido enviado a {clientName} para su revisión y firma.
             </p>
           </div>
         )}
@@ -600,15 +660,6 @@ export default function ContractPage() {
               Pagar {formatPrice(booking.total)} y confirmar
             </button>
           </div>
-        )}
-
-        {isPaidAndConfirmed && (
-          <button
-            onClick={handleDownloadPdf}
-            className="mb-6 flex w-full items-center justify-center gap-2 rounded-pill border border-line px-4 py-3 text-sm font-bold text-ink-primary transition hover:border-lime/40 print:hidden"
-          >
-            <Download className="h-4 w-4" /> Descargar contrato en PDF
-          </button>
         )}
 
         {/* Modificaciones después de firmar — nunca se sobrescribe un contrato firmado en
