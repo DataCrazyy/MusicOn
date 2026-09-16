@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Music2, Compass, ClipboardList, MessageCircle, HelpCircle, LogIn } from 'lucide-react';
+import { Music2, Compass, ClipboardList, MessageCircle, HelpCircle, LogIn, Bell } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useUnreadCount } from '@/lib/useUnreadCount';
+import { useUnreadNotifications } from '@/lib/useUnreadNotifications';
 import HelpFaqModal from './HelpFaqModal';
+import NotificationsPanel from './NotificationsPanel';
 
 const NAV_ITEMS = [
   { to: '/explore', label: 'Explorar', icon: Compass },
@@ -16,6 +18,8 @@ export default function Navbar() {
   const { user, profile } = useAuth();
   const unread = useUnreadCount();
   const [showHelp, setShowHelp] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadNotifications, refreshUnreadNotifications] = useUnreadNotifications();
 
   const initials = (profile?.full_name || user?.email || '?')
     .trim()
@@ -64,6 +68,21 @@ export default function Navbar() {
 
         {/* Ayuda + cuenta — escritorio */}
         <div className="hidden items-center gap-2 md:flex">
+          {user && (
+            <button
+              onClick={() => setShowNotifications(true)}
+              title="Notificaciones"
+              aria-label="Notificaciones"
+              className="relative flex h-9 w-9 items-center justify-center rounded-full text-ink-muted transition hover:bg-bg-raised hover:text-ink-primary"
+            >
+              <Bell className="h-5 w-5" />
+              {unreadNotifications > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-lime px-1 text-[9px] font-bold text-bg-base">
+                  {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                </span>
+              )}
+            </button>
+          )}
           <button
             onClick={() => setShowHelp(true)}
             title="Ayuda"
@@ -96,6 +115,21 @@ export default function Navbar() {
 
         {/* Ayuda + cuenta — mobile (la nav inferior maneja la navegación principal) */}
         <div className="flex items-center gap-1.5 md:hidden">
+          {user && (
+            <button
+              onClick={() => setShowNotifications(true)}
+              title="Notificaciones"
+              aria-label="Notificaciones"
+              className="relative flex h-9 w-9 items-center justify-center rounded-full text-ink-muted transition hover:bg-bg-raised hover:text-ink-primary"
+            >
+              <Bell className="h-5 w-5" />
+              {unreadNotifications > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-lime px-1 text-[9px] font-bold text-bg-base">
+                  {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                </span>
+              )}
+            </button>
+          )}
           <button
             onClick={() => setShowHelp(true)}
             title="Ayuda"
@@ -130,6 +164,12 @@ export default function Navbar() {
       </div>
 
       {showHelp && <HelpFaqModal onClose={() => setShowHelp(false)} />}
+      {showNotifications && (
+        <NotificationsPanel
+          onClose={() => setShowNotifications(false)}
+          onRead={refreshUnreadNotifications}
+        />
+      )}
     </header>
   );
 }

@@ -91,7 +91,7 @@ export default function RequestBooking() {
         duration_hours: durationHours ? Number(durationHours) : null,
         guest_range: guestRange,
         notes,
-      });
+      }, artist.owner_id);
       setDone(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No pudimos enviar tu solicitud. Prueba de nuevo.');

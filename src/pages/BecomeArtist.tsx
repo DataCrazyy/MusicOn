@@ -230,6 +230,12 @@ export default function BecomeArtist() {
       setError('Especifica qué otro equipamiento tienes.');
       return;
     }
+    // 50. La duración en horas nunca puede ser negativa ni cero — se valida aquí
+    // además del CHECK en la base de datos, nunca solo en el atributo min del input.
+    if (pricePer === 'event' && durationHours && !(Number(durationHours) > 0)) {
+      setError('La duración debe ser mayor a 0 horas.');
+      return;
+    }
 
     setSubmitting(true);
 

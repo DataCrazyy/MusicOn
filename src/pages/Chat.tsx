@@ -15,7 +15,9 @@ import { STATUS_LABELS } from '@/lib/bookingStatus';
 import { listUnreadBookingIds } from '@/lib/messages';
 import BookingMessages from '@/components/BookingMessages';
 import NegotiationPanel from '@/components/NegotiationPanel';
-import Stepper, { type Step } from '@/components/Stepper';
+import Stepper from '@/components/Stepper';
+import { computeFlowSteps } from '@/lib/flowSteps';
+import { getContractByBooking, type Contract } from '@/lib/contracts';
 import EmptyState from '@/components/EmptyState';
 
 type Conversation = {
@@ -35,6 +37,7 @@ type Conversation = {
   venueReference: string | null;
   guestRange: string | null;
   notes: string | null;
+  equipment: string | null;
   subtotal: number;
   total: number;
 };
@@ -42,12 +45,6 @@ type Conversation = {
 // Se ocultan solo las rechazadas; las pendientes también se muestran, para poder
 // negociar y decidir directamente desde el chat sin volver a Solicitudes.
 const VISIBLE_STATUSES = new Set(['pending', 'confirmed', 'in_escrow', 'completed']);
-
-const FLOW_STEPS: Step[] = [
-  { key: 'solicitud', label: 'Solicitud' },
-  { key: 'negociacion', label: 'Negociación' },
-  { key: 'acuerdo', label: 'Condiciones acordadas' },
-];
 
 const QUICK_REPLIES = [
   '¿Tienes disponibilidad?',
@@ -68,6 +65,7 @@ export default function Chat() {
   const [responseMsg, setResponseMsg] = useState('');
   const [acting, setActing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [activeContract, setActiveContract] = useState<Contract | null>(null);
 
   async function load() {
     if (!user) return;
@@ -98,6 +96,7 @@ export default function Chat() {
         venueReference: b.venue_reference,
         guestRange: b.guest_range,
         notes: b.notes,
+        equipment: b.equipment,
         subtotal: b.subtotal,
         total: b.total,
       }));
@@ -120,6 +119,7 @@ export default function Chat() {
         venueReference: b.venue_reference,
         guestRange: b.guest_range,
         notes: b.notes,
+        equipment: b.equipment,
         subtotal: b.subtotal,
         total: b.total,
       }));
@@ -163,7 +163,7 @@ export default function Chat() {
     if (!responding) return;
     setActing(true);
     try {
-      await respondToBooking(active.bookingId, responding, responseMsg.trim() || undefined);
+      await respondToBooking(active.bookingId, responding, responseMsg.trim() || undefined, active.recipientId);
       if (responding === 'confirmed') {
         // Bloqueamos esa fecha para que nadie más la pida — se ve en rojo en el calendario.
         await addBlockedDate(active.artistId, active.eventDate);
@@ -196,6 +196,21 @@ export default function Chat() {
 
   const active = conversations.find((c) => c.bookingId === openId) ?? null;
 
+  useEffect(() => {
+    if (!active || active.status === 'pending') {
+      setActiveContract(null);
+      return;
+    }
+    let cancelled = false;
+    getContractByBooking(active.bookingId).then((c) => {
+      if (!cancelled) setActiveContract(c);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?.bookingId, active?.status]);
+
   if (conversations.length === 0) {
     return (
       <EmptyState
@@ -211,7 +226,7 @@ export default function Chat() {
   const canRespond = !!active && active.isArtistSide && active.status === 'pending';
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-8rem)] max-w-6xl md:h-[calc(100vh-4rem)]">
+    <div className="mx-auto flex h-[calc(100vh-8rem)] max-w-5xl overflow-hidden md:h-[calc(100vh-6rem)] md:my-4 md:rounded-card md:border md:border-line">
       {/* Lista de conversaciones */}
       <div className={`w-full flex-shrink-0 overflow-y-auto border-r border-line bg-bg-base md:w-96 ${active ? 'hidden md:block' : 'block'}`}>
         <h1 className="px-6 pb-4 pt-7 font-display text-2xl font-bold text-ink-primary">Chat</h1>
@@ -248,7 +263,7 @@ export default function Chat() {
       <div className={`flex min-w-0 flex-1 flex-col ${active ? 'flex' : 'hidden md:flex'}`}>
         {active ? (
           <>
-            <div className="border-b border-line bg-bg-base px-6 py-5">
+            <div className="flex-shrink-0 border-b border-line bg-bg-surface px-4 py-4 sm:px-6 sm:py-5">
               <div className="flex items-center gap-3.5">
                 <button onClick={() => setOpenId(null)} className="text-ink-muted md:hidden">
                   <ArrowLeft className="h-5 w-5" />
@@ -279,7 +294,14 @@ export default function Chat() {
 
               {(active.status === 'pending' || active.status === 'confirmed') && (
                 <div className="mt-4">
-                  <Stepper steps={FLOW_STEPS} currentIndex={active.status === 'pending' ? 1 : 2} />
+                  <Stepper
+                    steps={computeFlowSteps({
+                      bookingStatus: active.status,
+                      artistSigned: !!activeContract?.artist_signed_name,
+                      clientSigned: !!activeContract?.client_signed_name,
+                      isPaidAndConfirmed: false,
+                    })}
+                  />
                 </div>
               )}
 
@@ -289,6 +311,7 @@ export default function Chat() {
                   userId={user.id}
                   myRole={active.isArtistSide ? 'artist' : 'client'}
                   otherPartyName={active.name}
+                  otherPartyUserId={active.recipientId}
                   current={{
                     eventDate: active.eventDate,
                     startTime: active.startTime,
@@ -297,6 +320,7 @@ export default function Chat() {
                     venueReference: active.venueReference,
                     guestRange: active.guestRange,
                     total: active.total,
+                    equipment: active.equipment,
                     notes: active.notes,
                   }}
                   onUpdated={load}

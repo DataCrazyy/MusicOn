@@ -38,7 +38,10 @@ import {
   type NegotiableField,
 } from '@/lib/negotiation';
 import { STATUS_LABELS } from '@/lib/bookingStatus';
-import Stepper, { type Step } from '@/components/Stepper';
+import { createNotification } from '@/lib/notifications';
+import Stepper from '@/components/Stepper';
+import StaticMapPreview from '@/components/StaticMapPreview';
+import { computeFlowSteps } from '@/lib/flowSteps';
 import ContractDocument from '@/components/ContractDocument';
 
 export default function ContractPage() {
@@ -58,10 +61,11 @@ export default function ContractPage() {
 
   const [events, setEvents] = useState<NegotiationEvent[]>([]);
   const [showModForm, setShowModForm] = useState(false);
-  const [modField, setModField] = useState<NegotiableField>('event_date');
+  const [modField, setModField] = useState<NegotiableField>('price');
   const [modValue, setModValue] = useState('');
   const [modMessage, setModMessage] = useState('');
   const [modSaving, setModSaving] = useState(false);
+  const [modError, setModError] = useState<string | null>(null);
   const [clientName, setClientName] = useState('Cliente');
 
   const isClient = !!user && !!booking && booking.client_id === user.id;
@@ -99,13 +103,29 @@ export default function ContractPage() {
   }, [bookingId]);
 
   async function handleSign() {
-    if (!contract || !fullName.trim() || !acceptedTerms) return;
+    if (!contract || !booking || !fullName.trim() || !acceptedTerms) return;
     setSigning(true);
     try {
       if (isClient) {
         await signContractAsClient(contract.id, fullName.trim());
+        if (booking.artist?.owner_id) {
+          await createNotification({
+            userId: booking.artist.owner_id,
+            bookingId: booking.id,
+            type: 'contract_signed',
+            message: 'El cliente firmó el contrato.',
+            link: `/contrato/${booking.id}`,
+          });
+        }
       } else if (isArtistOwner) {
         await signContractAsArtist(contract.id, fullName.trim());
+        await createNotification({
+          userId: booking.client_id,
+          bookingId: booking.id,
+          type: 'contract_signed',
+          message: 'El artista firmó el contrato. Tu contrato está pendiente de firma.',
+          link: `/contrato/${booking.id}`,
+        });
       }
       await load();
     } finally {
@@ -118,6 +138,15 @@ export default function ContractPage() {
     setPaying(true);
     try {
       await markBookingPaidAndConfirmed(booking.id);
+      if (booking.artist?.owner_id) {
+        await createNotification({
+          userId: booking.artist.owner_id,
+          bookingId: booking.id,
+          type: 'booking_confirmed',
+          message: 'Tienes una reserva confirmada.',
+          link: `/contrato/${booking.id}`,
+        });
+      }
       await load();
     } finally {
       setPaying(false);
@@ -133,16 +162,12 @@ export default function ContractPage() {
     switch (field) {
       case 'price':
         return String(booking.total);
-      case 'event_date':
-        return booking.event_date;
       case 'start_time':
         return booking.start_time ?? '';
       case 'duration_hours':
         return booking.duration_hours != null ? String(booking.duration_hours) : '';
-      case 'venue':
-        return booking.venue ?? '';
-      case 'guest_range':
-        return booking.guest_range ?? '';
+      case 'equipment':
+        return booking.equipment ?? '';
       case 'notes':
         return booking.notes ?? '';
     }
@@ -150,6 +175,17 @@ export default function ContractPage() {
 
   async function submitModification() {
     if (!booking || !user || !modValue.trim()) return;
+    // 50. La duración nunca puede ser negativa ni cero, tampoco en modificaciones
+    // posteriores a la firma.
+    if (modField === 'duration_hours' && !(Number(modValue) > 0)) {
+      setModError('La duración debe ser mayor a 0 horas.');
+      return;
+    }
+    if (modField === 'price' && !(Number(modValue) > 0)) {
+      setModError('El precio debe ser mayor a 0.');
+      return;
+    }
+    setModError(null);
     setModSaving(true);
     try {
       await proposeChange({
@@ -166,6 +202,8 @@ export default function ContractPage() {
       setModValue('');
       setModMessage('');
       await load();
+    } catch (err) {
+      setModError(err instanceof Error ? err.message : 'No pudimos enviar la solicitud.');
     } finally {
       setModSaving(false);
     }
@@ -269,25 +307,16 @@ export default function ContractPage() {
       ? 'Pendiente de firma del artista'
       : 'Firmado por el artista — pendiente de firma del cliente';
 
-  // Timeline del flujo completo: solicitud → negociación → condiciones acordadas →
-  // firma del artista → firma del cliente → pago → reserva confirmada.
-  const FLOW_STEPS: Step[] = [
-    { key: 'solicitud', label: 'Solicitud' },
-    { key: 'negociacion', label: 'Negociación' },
-    { key: 'acuerdo', label: 'Condiciones acordadas' },
-    { key: 'firma_artista', label: 'Firma del artista' },
-    { key: 'firma_cliente', label: 'Firma del cliente' },
-    { key: 'pago', label: 'Pago y reserva confirmada' },
-  ];
-  const flowStepIndex = booking.status === 'pending'
-    ? 1
-    : !artistSigned
-      ? 2
-      : !clientSigned
-        ? 3
-        : !isPaidAndConfirmed
-          ? 4
-          : 5;
+  // Timeline del flujo completo (7 pasos, ver lib/flowSteps.ts): solicitud →
+  // negociación → contrato → firma del artista → firma del cliente → pago → reserva
+  // confirmada. Se comparte con Chat.tsx para que el usuario vea siempre la misma
+  // numeración de etapas en toda la app.
+  const flowSteps = computeFlowSteps({
+    bookingStatus: booking.status,
+    artistSigned,
+    clientSigned,
+    isPaidAndConfirmed,
+  });
 
   return (
     <div className="min-h-screen bg-bg-base py-8 px-4 sm:px-6 lg:px-8 print:bg-white print:py-0">
@@ -305,7 +334,7 @@ export default function ContractPage() {
         </div>
 
         <div className="mb-6 rounded-card border border-line bg-bg-surface p-4 print:hidden">
-          <Stepper steps={FLOW_STEPS} currentIndex={flowStepIndex} />
+          <Stepper steps={flowSteps} />
         </div>
 
         {booking.status === 'completed' && (
@@ -332,9 +361,21 @@ export default function ContractPage() {
           Revisa los datos, firma el contrato digital y confirma para cerrar el acuerdo con {booking.artist?.name}.
         </p>
 
-        {/* Revisión de datos */}
+        {/* Revisión de datos — 58: foto del artista, servicio, fecha/hora, duración,
+            precio final y un mapa de solo referencia (no editable) de la ubicación. */}
         <div className="mb-6 rounded-card border border-line bg-bg-surface p-5">
           <h2 className="mb-3 text-sm font-bold text-ink-primary">Datos del servicio</h2>
+          <div className="mb-4 flex items-center gap-3">
+            <img
+              src={booking.artist?.photo_url ?? undefined}
+              alt={booking.artist?.name}
+              className="h-14 w-14 flex-shrink-0 rounded-full object-cover ring-1 ring-line"
+            />
+            <div>
+              <p className="font-display text-base font-bold text-ink-primary">{booking.artist?.name}</p>
+              <p className="text-xs text-ink-muted">{booking.event_type}</p>
+            </div>
+          </div>
           <dl className="space-y-2 text-sm">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 flex-shrink-0 text-ink-muted" />
@@ -345,18 +386,33 @@ export default function ContractPage() {
               <dd className="text-ink-primary">{booking.start_time ?? '—'}</dd>
             </div>
             <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 flex-shrink-0 text-ink-muted" />
-              <dd className="text-ink-primary">{booking.venue ?? '—'}</dd>
+              <History className="h-4 w-4 flex-shrink-0 text-ink-muted" />
+              <dd className="text-ink-primary">
+                {booking.duration_hours != null ? `${booking.duration_hours} horas` : 'Duración no especificada'}
+              </dd>
             </div>
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 flex-shrink-0 text-ink-muted" />
               <dd className="text-ink-primary">{booking.guest_range ?? '—'}</dd>
             </div>
             <div className="mt-2 flex justify-between border-t border-line pt-2 font-bold">
-              <dt className="text-ink-primary">Precio acordado</dt>
+              <dt className="text-ink-primary">Precio final</dt>
               <dd className="text-ink-primary">{formatPrice(booking.total)}</dd>
             </div>
           </dl>
+
+          <div className="mt-4">
+            <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-ink-muted">
+              <MapPin className="h-3.5 w-3.5" /> Lugar del evento (solo referencia — no editable aquí)
+            </p>
+            {booking.event_lat != null && booking.event_lng != null ? (
+              <StaticMapPreview lat={booking.event_lat} lng={booking.event_lng} />
+            ) : null}
+            <p className="mt-1.5 text-xs text-ink-primary">
+              {booking.venue ?? '—'}
+              {booking.venue_reference ? ` (${booking.venue_reference})` : ''}
+            </p>
+          </div>
         </div>
 
         {/* Contrato digital — documento visual profesional, con las mismas cláusulas
@@ -375,12 +431,16 @@ export default function ContractPage() {
           </div>
         )}
 
-        {/* Firmar */}
+        {/* Firmar — 57/59: siempre hay una acción siguiente clara, y el botón de firma
+            queda deshabilitado hasta marcar la casilla de confirmación. */}
         {canSign && (
           <div className="mb-6 rounded-card border border-line bg-bg-surface p-5 print:hidden">
-            <h2 className="mb-3 text-sm font-bold text-ink-primary">
-              {isArtistOwner ? 'Revisa y confirma los detalles de la contratación' : 'Firmar contrato'}
+            <h2 className="mb-1 text-sm font-bold text-ink-primary">
+              {isArtistOwner ? 'Revisa y confirma los detalles de la contratación' : 'Validar y firmar contrato'}
             </h2>
+            <p className="mb-3 text-xs text-ink-muted">
+              He revisado los datos de la contratación y confirmo que son correctos.
+            </p>
             <label className="mb-1 block text-xs font-semibold text-ink-muted">Nombre completo</label>
             <input
               value={fullName}
@@ -395,9 +455,7 @@ export default function ContractPage() {
                 onChange={(e) => setAcceptedTerms(e.target.checked)}
                 className="mt-0.5 h-4 w-4 accent-lime"
               />
-              {isArtistOwner
-                ? 'Confirmo que la información de esta contratación es correcta.'
-                : 'He leído y acepto los términos del contrato digital descrito arriba.'}
+              Confirmo que la información de la reserva es correcta.
             </label>
             <button
               onClick={handleSign}
@@ -405,7 +463,7 @@ export default function ContractPage() {
               className="mt-4 flex w-full items-center justify-center gap-2 rounded-pill bg-lime px-4 py-3 text-sm font-bold text-bg-base transition hover:bg-lime-dark disabled:opacity-60"
             >
               {signing && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isArtistOwner ? 'Firmar y confirmar' : 'Firmar contrato'}
+              {isArtistOwner ? 'Firmar y confirmar' : 'Firmar y enviar contrato'}
             </button>
           </div>
         )}
@@ -456,12 +514,12 @@ export default function ContractPage() {
               pendingModification.proposed_by === user?.id ? (
                 <p className="text-xs text-ink-muted">
                   Esperando aprobación de la otra parte para cambiar{' '}
-                  {FIELD_LABELS[pendingModification.field].toLowerCase()} a "{pendingModification.new_value}".
+                  {(FIELD_LABELS[pendingModification.field as keyof typeof FIELD_LABELS] ?? pendingModification.field).toLowerCase()} a "{pendingModification.new_value}".
                 </p>
               ) : (
                 <div className="rounded-lg border border-amber/30 bg-amber/10 p-3 text-xs">
                   <p className="font-bold text-ink-primary">Solicitud de modificación</p>
-                  <p className="mt-1 text-ink-muted">Campo: {FIELD_LABELS[pendingModification.field]}</p>
+                  <p className="mt-1 text-ink-muted">Campo: {FIELD_LABELS[pendingModification.field as keyof typeof FIELD_LABELS] ?? pendingModification.field}</p>
                   <p className="text-ink-muted">
                     Valor anterior: <span className="text-ink-primary">{pendingModification.old_value || '—'}</span>
                   </p>
@@ -509,10 +567,14 @@ export default function ContractPage() {
                 </select>
                 <label className="mb-1 block text-[11px] font-semibold text-ink-muted">Nuevo valor</label>
                 <input
+                  type={modField === 'price' || modField === 'duration_hours' ? 'number' : modField === 'start_time' ? 'time' : 'text'}
+                  min={modField === 'duration_hours' ? '0.5' : modField === 'price' ? '0' : undefined}
+                  step={modField === 'duration_hours' ? '0.5' : undefined}
                   value={modValue}
                   onChange={(e) => setModValue(e.target.value)}
                   className="mb-2 w-full rounded-lg border border-line bg-bg-surface px-3 py-2 text-sm text-ink-primary outline-none focus:border-lime"
                 />
+                {modError && <p className="mb-2 text-xs text-red-400">{modError}</p>}
                 <label className="mb-1 block text-[11px] font-semibold text-ink-muted">Motivo</label>
                 <textarea
                   value={modMessage}
@@ -542,9 +604,10 @@ export default function ContractPage() {
               <button
                 type="button"
                 onClick={() => {
-                  setModField('event_date');
-                  setModValue(fieldCurrentValue('event_date'));
+                  setModField('price');
+                  setModValue(fieldCurrentValue('price'));
                   setModMessage('');
+                  setModError(null);
                   setShowModForm(true);
                 }}
                 className="rounded-pill border border-line px-3 py-1.5 text-xs font-semibold text-ink-primary transition hover:border-lime/40"

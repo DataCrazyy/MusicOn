@@ -38,6 +38,7 @@ export default function MySolicitudes() {
     status: BookingStatus;
     artistId: string;
     eventDate: string;
+    clientId: string;
   } | null>(null);
   const [responseMsg, setResponseMsg] = useState('');
 
@@ -70,7 +71,7 @@ export default function MySolicitudes() {
   }, [user]);
 
   function startRespond(booking: BookingWithClient, status: BookingStatus) {
-    setRespondingTo({ id: booking.id, status, artistId: booking.artist_id, eventDate: booking.event_date });
+    setRespondingTo({ id: booking.id, status, artistId: booking.artist_id, eventDate: booking.event_date, clientId: booking.client_id });
     setResponseMsg('');
   }
 
@@ -78,7 +79,7 @@ export default function MySolicitudes() {
     if (!respondingTo) return;
     setActingOn(respondingTo.id);
     try {
-      await respondToBooking(respondingTo.id, respondingTo.status, responseMsg.trim() || undefined);
+      await respondToBooking(respondingTo.id, respondingTo.status, responseMsg.trim() || undefined, respondingTo.clientId);
       if (respondingTo.status === 'confirmed') {
         // Bloqueamos esa fecha para que nadie más la pida — se ve en rojo en el calendario.
         await addBlockedDate(respondingTo.artistId, respondingTo.eventDate);
@@ -91,10 +92,10 @@ export default function MySolicitudes() {
     }
   }
 
-  async function handleMarkCompleted(bookingId: string) {
+  async function handleMarkCompleted(bookingId: string, clientId?: string | null) {
     setCompletingId(bookingId);
     try {
-      await markBookingCompleted(bookingId);
+      await markBookingCompleted(bookingId, clientId);
       await load();
     } finally {
       setCompletingId(null);
@@ -316,7 +317,7 @@ export default function MySolicitudes() {
                           </>
                         ) : b.status === 'in_escrow' ? (
                           <button
-                            onClick={() => handleMarkCompleted(b.id)}
+                            onClick={() => handleMarkCompleted(b.id, b.client_id)}
                             disabled={completingId === b.id}
                             className="flex items-center gap-1.5 rounded-pill bg-lime px-4 py-2 text-sm font-bold text-bg-base hover:bg-lime-dark disabled:opacity-60"
                           >

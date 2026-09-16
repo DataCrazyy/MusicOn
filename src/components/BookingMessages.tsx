@@ -8,7 +8,7 @@ import {
   markThreadRead,
   type BookingMessage,
 } from '@/lib/messages';
-import { listNegotiationEvents, FIELD_LABELS, type NegotiationEvent } from '@/lib/negotiation';
+import { listNegotiationEvents, FIELD_LABELS, getProposalBundle, type NegotiationEvent } from '@/lib/negotiation';
 import { formatPrice } from '@/lib/format';
 
 type Props = {
@@ -31,10 +31,26 @@ function displayValue(field: NegotiationEvent['field'], value: string): string {
 }
 
 /** Línea de evento del sistema para el chat — nunca es un mensaje de texto libre,
- * siempre se arma a partir del dato estructurado de booking_negotiation_events. */
+ * siempre se arma a partir del dato estructurado de booking_negotiation_events. Las
+ * propuestas en bloque (proposal_number) se resumen como un solo bloque de campos,
+ * nunca campo por campo. */
 function eventLine(e: NegotiationEvent): string {
   const who = e.proposed_role === 'client' ? 'El cliente' : 'El artista';
-  const field = FIELD_LABELS[e.field].toLowerCase();
+
+  if (e.field === 'proposal') {
+    const bundle = getProposalBundle(e);
+    const label = e.proposal_number ? `Propuesta #${e.proposal_number}` : 'una propuesta';
+    const summary = bundle
+      ? `Precio ${formatPrice(bundle.price)}${bundle.duration_hours ? `, ${bundle.duration_hours} horas` : ''}${
+          bundle.start_time ? `, ${bundle.start_time}` : ''
+        }${bundle.equipment ? `, ${bundle.equipment}` : ''}`
+      : '';
+    if (e.status === 'accepted') return `${who} envió ${label} (${summary}) — fue aceptada.`;
+    if (e.status === 'rejected') return `${who} envió ${label} (${summary}) — fue rechazada.`;
+    return `${who} envió ${label}: ${summary}.`;
+  }
+
+  const field = (FIELD_LABELS[e.field as keyof typeof FIELD_LABELS] ?? e.field).toLowerCase();
   const to = displayValue(e.field, e.new_value);
   if (e.status === 'accepted') return `${who} propuso cambiar ${field} a ${to} — la otra parte lo aceptó.`;
   if (e.status === 'rejected') return `${who} propuso cambiar ${field} a ${to} — la otra parte lo rechazó.`;
@@ -145,7 +161,7 @@ export default function BookingMessages({ bookingId, recipientId, onRead, sugges
                   className={`max-w-[75%] px-4 py-2.5 text-sm leading-relaxed shadow-sm sm:text-[15px] ${
                     mine
                       ? 'self-end rounded-2xl rounded-br-md bg-lime text-bg-base'
-                      : 'self-start rounded-2xl rounded-bl-md bg-bg-raised text-ink-primary'
+                      : 'self-start rounded-2xl rounded-bl-md bg-bg-elevated text-ink-primary'
                   }`}
                 >
                   {m.body}

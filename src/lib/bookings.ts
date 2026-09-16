@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { createNotification } from './notifications';
 
 export type BookingStatus = 'pending' | 'confirmed' | 'in_escrow' | 'completed' | 'cancelled';
 
@@ -20,6 +21,9 @@ export type BookingWithArtist = {
   event_lng: number | null;
   venue_reference: string | null;
   duration_hours: number | null;
+  /** Equipamiento negociado para esta reserva puntual (distinto del listado por
+   * defecto del perfil del artista) — se define/ajusta desde el panel de negociación. */
+  equipment: string | null;
   paid_at: string | null;
   created_at: string;
   artist: {
@@ -53,6 +57,7 @@ export type BookingWithClient = {
   status: BookingStatus;
   venue_reference: string | null;
   duration_hours: number | null;
+  equipment: string | null;
   created_at: string;
   client: { full_name: string | null } | null;
 };
@@ -75,7 +80,8 @@ export async function createBookingRequest(
   clientId: string,
   artistId: string,
   referencePrice: number,
-  input: NewBookingInput
+  input: NewBookingInput,
+  artistOwnerId?: string | null
 ) {
   const { data, error } = await supabase
     .from('bookings')
@@ -100,6 +106,17 @@ export async function createBookingRequest(
     .single();
 
   if (error) throw error;
+
+  if (artistOwnerId) {
+    await createNotification({
+      userId: artistOwnerId,
+      bookingId: data.id,
+      type: 'request_received',
+      message: 'Recibiste una nueva solicitud.',
+      link: `/chat?b=${data.id}`,
+    });
+  }
+
   return data;
 }
 
@@ -138,19 +155,43 @@ export async function listBookingsForArtist(artistId: string): Promise<BookingWi
   return data as unknown as BookingWithClient[];
 }
 
-export async function markBookingCompleted(bookingId: string) {
+export async function markBookingCompleted(bookingId: string, clientId?: string | null) {
   const { error } = await supabase.from('bookings').update({ status: 'completed' }).eq('id', bookingId);
   if (error) throw error;
+
+  if (clientId) {
+    await createNotification({
+      userId: clientId,
+      bookingId,
+      type: 'service_completed',
+      message: 'Tu servicio fue marcado como realizado. Ya puedes dejar una reseña.',
+      link: `/solicitudes`,
+    });
+  }
 }
 
 export async function respondToBooking(
   bookingId: string,
   status: BookingStatus,
-  artistResponse?: string
+  artistResponse?: string,
+  clientId?: string | null
 ) {
   const { error } = await supabase
     .from('bookings')
     .update({ status, artist_response: artistResponse || null })
     .eq('id', bookingId);
   if (error) throw error;
+
+  if (clientId) {
+    await createNotification({
+      userId: clientId,
+      bookingId,
+      type: 'request_responded',
+      message:
+        status === 'confirmed'
+          ? 'El artista respondió a tu solicitud: la aceptó.'
+          : 'El artista respondió a tu solicitud: la rechazó.',
+      link: `/chat?b=${bookingId}`,
+    });
+  }
 }
