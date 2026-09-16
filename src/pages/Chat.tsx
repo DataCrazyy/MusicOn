@@ -296,18 +296,20 @@ export default function Chat() {
                 </p>
               )}
 
-              {(active.status === 'pending' || active.status === 'confirmed') && (
-                <button
-                  type="button"
-                  onClick={() => setShowDetails((v) => !v)}
-                  className="mt-3 flex w-full items-center justify-between rounded-lg border border-line bg-bg-base px-3 py-2 text-xs font-semibold text-ink-muted transition hover:text-ink-primary"
-                >
-                  {showDetails ? 'Ocultar detalles de la reserva' : 'Ver detalles de la reserva y negociación'}
-                  {showDetails ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                </button>
-              )}
+              {/* El resumen de progreso (7 pasos) y la negociación se pueden ver en
+                  cualquier estado visible del chat -- antes desaparecían por completo en
+                  cuanto se pagaba (in_escrow), dejando la pantalla sin ningún indicador
+                  de que ya se había firmado y pagado todo. */}
+              <button
+                type="button"
+                onClick={() => setShowDetails((v) => !v)}
+                className="mt-3 flex w-full items-center justify-between rounded-lg border border-line bg-bg-base px-3 py-2 text-xs font-semibold text-ink-muted transition hover:text-ink-primary"
+              >
+                {showDetails ? 'Ocultar detalles de la reserva' : 'Ver detalles de la reserva y negociación'}
+                {showDetails ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
 
-              {showDetails && (active.status === 'pending' || active.status === 'confirmed') && (
+              {showDetails && (
                 // 70/71: contenido con scroll propio y acotado — si el formulario de
                 // negociación crece (modo edición/revisión), nunca queda cortado ni
                 // atrapado detrás de un contenedor sin scroll.
@@ -317,10 +319,10 @@ export default function Chat() {
                       bookingStatus: active.status,
                       artistSigned: !!activeContract?.artist_signed_name,
                       clientSigned: !!activeContract?.client_signed_name,
-                      isPaidAndConfirmed: false,
+                      isPaidAndConfirmed: active.status === 'in_escrow' || active.status === 'completed',
                     })}
                   />
-                  {user && (
+                  {(active.status === 'pending' || active.status === 'confirmed') && user && (
                     <NegotiationPanel
                       bookingId={active.bookingId}
                       userId={user.id}
@@ -344,12 +346,34 @@ export default function Chat() {
                 </div>
               )}
 
+              {/* Antes solo el cliente tenía un botón para llegar al contrato -- el
+                  artista no tenía ninguna forma de volver a esa pantalla salvo desde una
+                  notificación (74). Ahora ambos lados tienen un enlace directo, visible
+                  mientras exista un contrato para esta reserva. */}
               {active.status === 'confirmed' && !active.isArtistSide && (
                 <Link
                   to={`/contrato/${active.bookingId}`}
                   className="mt-4 flex items-center justify-center gap-1.5 rounded-pill bg-lime px-4 py-2.5 text-sm font-bold text-bg-base hover:bg-lime-dark"
                 >
                   <FileSignature className="h-4 w-4" /> ¡{active.name} aceptó! Confirmar contratación
+                </Link>
+              )}
+
+              {active.status === 'confirmed' && active.isArtistSide && (
+                <Link
+                  to={`/contrato/${active.bookingId}`}
+                  className="mt-4 flex items-center justify-center gap-1.5 rounded-pill bg-lime px-4 py-2.5 text-sm font-bold text-bg-base hover:bg-lime-dark"
+                >
+                  <FileSignature className="h-4 w-4" /> Revisar contratación y firmar
+                </Link>
+              )}
+
+              {(active.status === 'in_escrow' || active.status === 'completed') && (
+                <Link
+                  to={`/contrato/${active.bookingId}`}
+                  className="mt-4 flex items-center justify-center gap-1.5 rounded-pill border border-line px-4 py-2.5 text-sm font-bold text-ink-primary hover:border-lime/40"
+                >
+                  <FileSignature className="h-4 w-4" /> Ver contrato
                 </Link>
               )}
 

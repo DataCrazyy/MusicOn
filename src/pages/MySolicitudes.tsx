@@ -413,6 +413,16 @@ export default function MySolicitudes() {
                             <CheckCircle2 className="h-3.5 w-3.5" /> Servicio realizado — contratación finalizada
                           </p>
                         )}
+                        {/* El cliente ya tenia un boton para llegar al contrato -- el artista no
+                            tenia ninguno propio ademas del enlace de una notificacion (74). */}
+                        {(b.status === 'confirmed' || b.status === 'in_escrow') && (
+                          <Link
+                            to={`/contrato/${b.id}`}
+                            className="mt-3 inline-flex items-center gap-1.5 rounded-pill bg-lime px-4 py-2 text-xs font-bold text-bg-base hover:bg-lime-dark"
+                          >
+                            {b.status === 'confirmed' ? 'Revisar contratación y firmar' : 'Ver contrato'}
+                          </Link>
+                        )}
                       </div>
 
                       <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
