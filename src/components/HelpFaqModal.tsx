@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, ChevronDown, HelpCircle } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 const FAQ_ITEMS = [
   {
@@ -47,7 +48,7 @@ const FAQ_ITEMS = [
 export default function HelpFaqModal({ onClose }: { onClose: () => void }) {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
-  return (
+  return createPortal(
     // Fondo semitransparente y clickeable para cerrar — nunca bloquea permanentemente la
     // navegación superior ni el contenido: en desktop el panel es lateral (no un modal
     // centrado que tapa todo), y en mobile es un bottom sheet que respeta el safe-area.
@@ -100,6 +101,7 @@ export default function HelpFaqModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

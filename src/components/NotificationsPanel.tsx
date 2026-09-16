@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, X, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import {
+import { createPortal } from 'react-dom';
   listNotifications,
   markNotificationRead,
   markAllNotificationsRead,
@@ -57,7 +58,7 @@ export default function NotificationsPanel({ onClose, onRead }: Props) {
     onRead();
   }
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[70] flex items-end justify-center bg-bg-base/70 backdrop-blur-[2px] sm:items-stretch sm:justify-end"
       onClick={(e) => {
@@ -123,6 +124,7 @@ export default function NotificationsPanel({ onClose, onRead }: Props) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
