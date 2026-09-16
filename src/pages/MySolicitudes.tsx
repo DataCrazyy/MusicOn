@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, Check, X, Calendar, MapPin, Clock, Users, MessageCircle, ClipboardList } from 'lucide-react';
+import { Loader2, Check, X, Calendar, MapPin, Clock, Users, MessageCircle, ClipboardList, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { getArtistByOwner, addBlockedDate, type DbArtist } from '@/lib/artists';
 import { formatPrice } from '@/lib/format';
@@ -8,10 +8,14 @@ import {
   listBookingsAsClient,
   listBookingsForArtist,
   respondToBooking,
+  markBookingCompleted,
   type BookingWithArtist,
   type BookingWithClient,
   type BookingStatus,
 } from '@/lib/bookings';
+import { listReviewsByClient, type Review } from '@/lib/reviews';
+import ReviewForm from '@/components/ReviewForm';
+import StarRating from '@/components/StarRating';
 import { listUnreadBookingIds } from '@/lib/messages';
 import BookingMessages from '@/components/BookingMessages';
 import EmptyState from '@/components/EmptyState';
@@ -50,6 +54,8 @@ export default function MySolicitudes() {
   const [asArtist, setAsArtist] = useState<BookingWithClient[]>([]);
   const [actingOn, setActingOn] = useState<string | null>(null);
   const [unreadIds, setUnreadIds] = useState<Set<string>>(new Set());
+  const [reviewsByBooking, setReviewsByBooking] = useState<Record<string, Review>>({});
+  const [completingId, setCompletingId] = useState<string | null>(null);
 
   // id of the booking currently showing the "leave a message" panel for a decision, and which
   // decision it's for
@@ -67,14 +73,16 @@ export default function MySolicitudes() {
   async function load() {
     if (!user) return;
     setLoading(true);
-    const [clientBookings, artist, unread] = await Promise.all([
+    const [clientBookings, artist, unread, myReviews] = await Promise.all([
       listBookingsAsClient(user.id),
       getArtistByOwner(user.id),
       listUnreadBookingIds(user.id),
+      listReviewsByClient(user.id),
     ]);
     setAsClient(clientBookings);
     setMyArtist(artist);
     setUnreadIds(unread);
+    setReviewsByBooking(Object.fromEntries(myReviews.map((r) => [r.booking_id, r])));
     if (artist) {
       setAsArtist(await listBookingsForArtist(artist.id));
     }
@@ -109,6 +117,16 @@ export default function MySolicitudes() {
       await load();
     } finally {
       setActingOn(null);
+    }
+  }
+
+  async function handleMarkCompleted(bookingId: string) {
+    setCompletingId(bookingId);
+    try {
+      await markBookingCompleted(bookingId);
+      await load();
+    } finally {
+      setCompletingId(null);
     }
   }
 
@@ -220,6 +238,25 @@ export default function MySolicitudes() {
                           Confirmar contratación
                         </Link>
                       )}
+                      {b.status === 'completed' && b.artist?.owner_id && (
+                        reviewsByBooking[b.id] ? (
+                          <div className="mt-3 rounded-lg border border-line bg-bg-base p-3">
+                            <p className="mb-1 text-xs font-semibold text-ink-muted">Tu reseña</p>
+                            <StarRating value={reviewsByBooking[b.id].rating} />
+                            {reviewsByBooking[b.id].comment && (
+                              <p className="mt-1 text-sm text-ink-muted">"{reviewsByBooking[b.id].comment}"</p>
+                            )}
+                          </div>
+                        ) : (
+                          <ReviewForm
+                            bookingId={b.id}
+                            artistId={b.artist_id}
+                            clientId={b.client_id}
+                            artistName={b.artist?.name ?? 'el artista'}
+                            onDone={load}
+                          />
+                        )
+                      )}
                     </div>
                     <div className="flex flex-shrink-0 flex-col items-end gap-2">
                       <span className={`rounded-pill px-3 py-1 text-xs font-semibold ${STATUS_LABELS[b.status].className}`}>
@@ -305,6 +342,19 @@ export default function MySolicitudes() {
                               <X className="h-4 w-4" /> Rechazar
                             </button>
                           </>
+                        ) : b.status === 'in_escrow' ? (
+                          <button
+                            onClick={() => handleMarkCompleted(b.id)}
+                            disabled={completingId === b.id}
+                            className="flex items-center gap-1.5 rounded-pill bg-lime px-4 py-2 text-sm font-bold text-bg-base hover:bg-lime-dark disabled:opacity-60"
+                          >
+                            {completingId === b.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="h-4 w-4" />
+                            )}
+                            Marcar servicio como realizado
+                          </button>
                         ) : (
                           b.status !== 'pending' && (
                             <span className={`rounded-pill px-3 py-1 text-xs font-semibold ${STATUS_LABELS[b.status].className}`}>

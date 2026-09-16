@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
-import { BadgeCheck, MapPin, Users } from 'lucide-react';
+import { BadgeCheck, MapPin, Users, Star } from 'lucide-react';
 import type { DbArtist } from '@/lib/artists';
 import { formatPrice } from '@/lib/format';
+import type { RatingSummary } from '@/lib/reviews';
 
-export default function ArtistCard({ artist }: { artist: DbArtist }) {
+export default function ArtistCard({ artist, rating }: { artist: DbArtist; rating?: RatingSummary }) {
   return (
     <Link
       to={`/profile/${artist.id}`}
@@ -36,6 +37,11 @@ export default function ArtistCard({ artist }: { artist: DbArtist }) {
         </div>
 
         <div className="flex items-center gap-3 text-xs text-ink-muted">
+          {rating && rating.count > 0 && (
+            <span className="flex items-center gap-1 font-semibold text-ink-primary">
+              <Star className="h-3.5 w-3.5 fill-amber text-amber" /> {rating.avg.toFixed(1)}
+            </span>
+          )}
           <span className="rounded-pill bg-bg-raised px-2 py-0.5">{artist.genre}</span>
           <span className="flex items-center gap-1">
             <MapPin className="h-3.5 w-3.5" /> {artist.city}

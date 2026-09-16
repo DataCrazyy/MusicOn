@@ -134,6 +134,11 @@ export async function proposeNewPrice(bookingId: string, total: number) {
   if (error) throw error;
 }
 
+export async function markBookingCompleted(bookingId: string) {
+  const { error } = await supabase.from('bookings').update({ status: 'completed' }).eq('id', bookingId);
+  if (error) throw error;
+}
+
 export async function respondToBooking(
   bookingId: string,
   status: BookingStatus,

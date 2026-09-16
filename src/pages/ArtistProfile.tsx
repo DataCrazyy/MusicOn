@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, MapPin, Users, Loader2, Instagram, Facebook, Music2, Wrench } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, MapPin, Users, Loader2, Instagram, Facebook, Music2, Wrench, MessageSquare } from 'lucide-react';
 import { getArtistById, type DbArtist } from '@/lib/artists';
 import { formatPrice } from '@/lib/format';
 import { useAuth } from '@/lib/AuthContext';
 import { toSpotifyEmbedUrl, spotifyEmbedHeight, toYouTubeEmbedUrl } from '@/lib/embeds';
 import ShareButton from '@/components/ShareButton';
+import StarRating from '@/components/StarRating';
+import { listReviewsForArtist, type Review } from '@/lib/reviews';
 
 export default function ArtistProfile() {
   const { id } = useParams<{ id: string }>();
@@ -13,6 +15,7 @@ export default function ArtistProfile() {
   const [artist, setArtist] = useState<DbArtist | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -21,7 +24,11 @@ export default function ArtistProfile() {
       .then(setArtist)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+    listReviewsForArtist(id).then(setReviews);
   }, [id]);
+
+  const avgRating =
+    reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
 
   if (loading) {
     return (
@@ -73,6 +80,14 @@ export default function ArtistProfile() {
                     </span>
                   )}
                 </div>
+                {reviews.length > 0 && (
+                  <div className="mt-1.5 flex items-center gap-1.5 text-sm text-ink-muted">
+                    <StarRating value={avgRating} size={14} />
+                    <span>
+                      {avgRating.toFixed(1)} · {reviews.length} {reviews.length === 1 ? 'reseña' : 'reseñas'}
+                    </span>
+                  </div>
+                )}
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-ink-muted">
                   <span className="rounded-pill bg-bg-raised px-2.5 py-1">{artist.genre}</span>
                   <span className="flex items-center gap-1">
@@ -209,6 +224,31 @@ export default function ArtistProfile() {
                 )}
               </div>
             )}
+
+            <div className="mt-8">
+              <h2 className="mb-3 flex items-center gap-1.5 font-display text-lg font-bold text-ink-primary">
+                <MessageSquare className="h-4 w-4" /> Reseñas
+              </h2>
+              {reviews.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 rounded-lg border border-line bg-bg-raised px-4 py-8 text-center">
+                  <MessageSquare className="h-6 w-6 text-ink-muted" />
+                  <p className="text-sm font-semibold text-ink-primary">Aún no hay reseñas</p>
+                  <p className="text-xs text-ink-muted">Este artista todavía no tiene reseñas de clientes anteriores.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {reviews.map((r) => (
+                    <div key={r.id} className="rounded-lg border border-line bg-bg-raised p-4">
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <p className="font-semibold text-ink-primary">{r.client?.full_name ?? 'Cliente'}</p>
+                        <StarRating value={r.rating} size={14} />
+                      </div>
+                      {r.comment && <p className="text-sm text-ink-muted">{r.comment}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {user && artist.owner_id === user.id ? (
               <div className="mt-8 rounded-pill border border-line px-6 py-3.5 text-center text-sm font-semibold text-ink-muted">

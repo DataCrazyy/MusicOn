@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Search, Loader2, Sparkles, X } from 'lucide-react';
 import ArtistCardLite from '@/components/ArtistCardLite';
 import { listArtists, type DbArtist } from '@/lib/artists';
+import { getAllArtistRatings, type RatingSummary } from '@/lib/reviews';
 
-type SortBy = 'price_asc' | 'price_desc' | 'default';
+type SortBy = 'price_asc' | 'price_desc' | 'default' | 'rating_desc';
 
 const BUDGETS = [
   { label: 'Cualquier presupuesto', value: Infinity },
@@ -31,12 +32,14 @@ export default function Explore() {
   const [maxBudget, setMaxBudget] = useState(Infinity);
   const [sort, setSort] = useState<SortBy>('default');
   const [minMembers, setMinMembers] = useState(0);
+  const [ratings, setRatings] = useState<Record<string, RatingSummary>>({});
 
   useEffect(() => {
     listArtists()
       .then(setArtists)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+    getAllArtistRatings().then(setRatings).catch(() => {});
   }, []);
 
   const genres = useMemo(() => ['All', ...Array.from(new Set(artists.map((a) => a.genre)))], [artists]);
@@ -45,6 +48,16 @@ export default function Explore() {
   function applySort(list: DbArtist[]) {
     if (sort === 'price_asc') return [...list].sort((a, b) => a.price_from - b.price_from);
     if (sort === 'price_desc') return [...list].sort((a, b) => b.price_from - a.price_from);
+    if (sort === 'rating_desc') {
+      return [...list].sort((a, b) => {
+        const ra = ratings[a.id];
+        const rb = ratings[b.id];
+        if (!ra && !rb) return 0;
+        if (!ra) return 1;
+        if (!rb) return -1;
+        return rb.avg - ra.avg || rb.count - ra.count;
+      });
+    }
     return list;
   }
 
@@ -64,7 +77,7 @@ export default function Explore() {
 
     return applySort(result);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [artists, query, city, genre, maxBudget, minMembers, sort]);
+  }, [artists, query, city, genre, maxBudget, minMembers, sort, ratings]);
 
   const hasActiveFilters =
     query.trim() !== '' || city !== 'All' || genre !== 'All' || maxBudget !== Infinity || minMembers !== 0;
@@ -167,6 +180,7 @@ export default function Explore() {
             className="rounded-pill border border-line bg-bg-surface px-4 py-2.5 text-sm text-ink-primary outline-none focus:border-lime"
           >
             <option value="default">Recomendados</option>
+            <option value="rating_desc">Mejor valorados</option>
             <option value="price_asc">Precio: menor a mayor</option>
             <option value="price_desc">Precio: mayor a menor</option>
           </select>
@@ -205,7 +219,7 @@ export default function Explore() {
                 </p>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {suggestions.map((artist) => (
-                    <ArtistCardLite key={artist.id} artist={artist} />
+                    <ArtistCardLite key={artist.id} artist={artist} rating={ratings[artist.id]} />
                   ))}
                 </div>
               </>
@@ -218,7 +232,7 @@ export default function Explore() {
             <p className="mb-4 text-sm text-ink-muted">{filtered.length} artistas encontrados</p>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {filtered.map((artist) => (
-                <ArtistCardLite key={artist.id} artist={artist} />
+                <ArtistCardLite key={artist.id} artist={artist} rating={ratings[artist.id]} />
               ))}
             </div>
           </>
