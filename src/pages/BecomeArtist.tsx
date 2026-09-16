@@ -12,6 +12,7 @@ import {
 } from '@/lib/artists';
 import { ARTIST_GENRES, BOLIVIA_CITIES, BIO_MAX_LENGTH } from '@/lib/constants';
 import AvailabilityCalendar from '@/components/AvailabilityCalendar';
+import PhotoCropModal from '@/components/PhotoCropModal';
 
 const MAX_PHOTO_MB = 5;
 const MAX_GALLERY_PHOTOS = 8;
@@ -50,6 +51,7 @@ export default function BecomeArtist() {
   const [bio, setBio] = useState('');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [priceFrom, setPriceFrom] = useState('');
@@ -128,8 +130,16 @@ export default function BecomeArtist() {
       setPhotoError(`La imagen no puede pesar más de ${MAX_PHOTO_MB}MB.`);
       return;
     }
+    const reader = new FileReader();
+    reader.onload = () => setCropSrc(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  function handleCropConfirm(blob: Blob) {
+    const file = new File([blob], 'foto-perfil.jpg', { type: 'image/jpeg' });
     setPhotoFile(file);
-    setPhotoPreview(URL.createObjectURL(file));
+    setPhotoPreview(URL.createObjectURL(blob));
+    setCropSrc(null);
   }
 
   function handlePhotoChange(e: ChangeEvent<HTMLInputElement>) {
@@ -316,6 +326,7 @@ export default function BecomeArtist() {
   }
 
   return (
+    <>
     <div className="min-h-screen bg-bg-base py-8 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-xl">
         <h1 className="mb-2 font-display text-3xl font-bold text-ink-primary">
@@ -735,5 +746,13 @@ export default function BecomeArtist() {
         </form>
       </div>
     </div>
+    {cropSrc && (
+      <PhotoCropModal
+        imageSrc={cropSrc}
+        onConfirm={handleCropConfirm}
+        onCancel={() => setCropSrc(null)}
+      />
+    )}
+    </>
   );
 }
