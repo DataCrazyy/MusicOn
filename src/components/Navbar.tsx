@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Music2, Compass, ClipboardList, MessageCircle } from 'lucide-react';
+import { Music2, Compass, ClipboardList, MessageCircle, HelpCircle } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useUnreadCount } from '@/lib/useUnreadCount';
+import HelpFaqModal from './HelpFaqModal';
 
 const NAV_ITEMS = [
   { to: '/explore', label: 'Explorar', icon: Compass },
@@ -13,6 +15,7 @@ export default function Navbar() {
   const location = useLocation();
   const { user, profile } = useAuth();
   const unread = useUnreadCount();
+  const [showHelp, setShowHelp] = useState(false);
 
   const initials = (profile?.full_name || user?.email || '?')
     .trim()
@@ -59,8 +62,16 @@ export default function Navbar() {
           })}
         </nav>
 
-        {/* Cuenta — escritorio */}
-        <div className="hidden md:flex">
+        {/* Ayuda + cuenta — escritorio */}
+        <div className="hidden items-center gap-2 md:flex">
+          <button
+            onClick={() => setShowHelp(true)}
+            title="Ayuda"
+            aria-label="Ayuda"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted transition hover:bg-bg-raised hover:text-ink-primary"
+          >
+            <HelpCircle className="h-5 w-5" />
+          </button>
           {user ? (
             <Link
               to="/cuenta"
@@ -83,22 +94,34 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Cuenta — mobile (la nav inferior maneja la navegación principal) */}
-        <Link
-          to={user ? '/cuenta' : '/login'}
-          className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-bg-raised text-sm font-bold text-ink-primary ring-1 ring-line transition hover:ring-lime md:hidden"
-        >
-          {user ? (
-            profile?.avatar_url ? (
-              <img src={profile.avatar_url} alt="Mi cuenta" className="h-full w-full object-cover" />
+        {/* Ayuda + cuenta — mobile (la nav inferior maneja la navegación principal) */}
+        <div className="flex items-center gap-1.5 md:hidden">
+          <button
+            onClick={() => setShowHelp(true)}
+            title="Ayuda"
+            aria-label="Ayuda"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted transition hover:bg-bg-raised hover:text-ink-primary"
+          >
+            <HelpCircle className="h-5 w-5" />
+          </button>
+          <Link
+            to={user ? '/cuenta' : '/login'}
+            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-bg-raised text-sm font-bold text-ink-primary ring-1 ring-line transition hover:ring-lime"
+          >
+            {user ? (
+              profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="Mi cuenta" className="h-full w-full object-cover" />
+              ) : (
+                initials
+              )
             ) : (
-              initials
-            )
-          ) : (
-            '?'
-          )}
-        </Link>
+              '?'
+            )}
+          </Link>
+        </div>
       </div>
+
+      {showHelp && <HelpFaqModal onClose={() => setShowHelp(false)} />}
     </header>
   );
 }
