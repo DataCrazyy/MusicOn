@@ -43,6 +43,7 @@ export default function MySolicitudes() {
   } | null>(null);
   const [responseMsg, setResponseMsg] = useState('');
   const [view, setView] = useState<'client' | 'artist'>('client');
+  const [eventsOnly, setEventsOnly] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
 
@@ -137,13 +138,20 @@ export default function MySolicitudes() {
 
   // El archivado es independiente por lado (archived_by_client / archived_by_artist):
   // archivar una solicitud no la oculta de la otra parte, solo de tu propia vista.
-  const visibleAsClient = asClient.filter((b) => (showArchived ? b.archived_by_client : !b.archived_by_client));
-  const visibleAsArtist = asArtist.filter((b) => (showArchived ? b.archived_by_artist : !b.archived_by_artist));
+  // "Ver tus eventos": una reserva ya confirmada/pagada es un evento en la agenda,
+  // no solo una solicitud en curso -- este filtro las aisla de las pendientes.
+  const EVENT_STATUSES = new Set<BookingStatus>(['confirmed', 'in_escrow', 'completed']);
+  const visibleAsClient = asClient
+    .filter((b) => (showArchived ? b.archived_by_client : !b.archived_by_client))
+    .filter((b) => !eventsOnly || EVENT_STATUSES.has(b.status));
+  const visibleAsArtist = asArtist
+    .filter((b) => (showArchived ? b.archived_by_artist : !b.archived_by_artist))
+    .filter((b) => !eventsOnly || EVENT_STATUSES.has(b.status));
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-bg-base py-8 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-3xl space-y-6">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-display text-3xl font-bold text-ink-primary">Mis solicitudes</h1>
           <button
             type="button"
@@ -152,6 +160,29 @@ export default function MySolicitudes() {
           >
             {showArchived ? <ArchiveRestore className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
             {showArchived ? 'Ver activas' : 'Ver archivadas'}
+          </button>
+        </div>
+
+        {/* Ver tus eventos: aisla lo ya confirmado/pagado/realizado de las solicitudes
+            todavia en curso, sin necesitar una pagina nueva. */}
+        <div className="flex gap-2 rounded-pill border border-line bg-bg-surface p-1">
+          <button
+            type="button"
+            onClick={() => setEventsOnly(false)}
+            className={`flex-1 rounded-pill px-4 py-2 text-sm font-bold transition ${
+              !eventsOnly ? 'bg-lime text-bg-base' : 'text-ink-muted hover:text-ink-primary'
+            }`}
+          >
+            Todas
+          </button>
+          <button
+            type="button"
+            onClick={() => setEventsOnly(true)}
+            className={`flex-1 rounded-pill px-4 py-2 text-sm font-bold transition ${
+              eventsOnly ? 'bg-lime text-bg-base' : 'text-ink-muted hover:text-ink-primary'
+            }`}
+          >
+            Mis eventos
           </button>
         </div>
 
@@ -186,7 +217,11 @@ export default function MySolicitudes() {
           )}
           {visibleAsClient.length === 0 ? (
             <p className="text-sm text-ink-muted">
-              {showArchived ? 'No tienes solicitudes archivadas.' : 'Todavía no pediste ninguna reserva.'}
+              {showArchived
+                ? 'No tienes solicitudes archivadas.'
+                : eventsOnly
+                  ? 'Todavía no tienes eventos confirmados.'
+                  : 'Todavía no pediste ninguna reserva.'}
             </p>
           ) : (
             <div className="space-y-3">
@@ -335,7 +370,11 @@ export default function MySolicitudes() {
             </h2>
             {visibleAsArtist.length === 0 ? (
               <p className="text-sm text-ink-muted">
-                {showArchived ? 'No tienes solicitudes archivadas.' : 'Todavía no recibiste solicitudes.'}
+                {showArchived
+                  ? 'No tienes solicitudes archivadas.'
+                  : eventsOnly
+                    ? 'Todavía no tienes eventos confirmados.'
+                    : 'Todavía no recibiste solicitudes.'}
               </p>
             ) : (
               <div className="space-y-3">
