@@ -145,6 +145,23 @@ export default function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  const active = conversations.find((c) => c.bookingId === openId) ?? null;
+
+  useEffect(() => {
+    if (!active || active.status === 'pending') {
+      setActiveContract(null);
+      return;
+    }
+    let cancelled = false;
+    getContractByBooking(active.bookingId).then((c) => {
+      if (!cancelled) setActiveContract(c);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?.bookingId, active?.status]);
+
   function clearUnread(bookingId: string) {
     setUnreadIds((prev) => {
       if (!prev.has(bookingId)) return prev;
@@ -193,23 +210,6 @@ export default function Chat() {
       </div>
     );
   }
-
-  const active = conversations.find((c) => c.bookingId === openId) ?? null;
-
-  useEffect(() => {
-    if (!active || active.status === 'pending') {
-      setActiveContract(null);
-      return;
-    }
-    let cancelled = false;
-    getContractByBooking(active.bookingId).then((c) => {
-      if (!cancelled) setActiveContract(c);
-    });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active?.bookingId, active?.status]);
 
   if (conversations.length === 0) {
     return (
