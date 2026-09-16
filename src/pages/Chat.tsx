@@ -264,6 +264,12 @@ export default function Chat() {
                 </span>
               </div>
 
+              {active.status === 'completed' && (
+                <p className="mt-2 text-xs font-semibold text-ink-muted">
+                  Chat: Finalizado — {active.eventDate}
+                </p>
+              )}
+
               {(active.status === 'pending' || active.status === 'confirmed') && user && (
                 <NegotiationPanel
                   bookingId={active.bookingId}
@@ -355,6 +361,7 @@ export default function Chat() {
                 recipientId={active.recipientId}
                 onRead={() => clearUnread(active.bookingId)}
                 suggestions={QUICK_REPLIES}
+                readOnly={active.status === 'completed'}
                 bare
               />
             </div>

@@ -197,6 +197,16 @@ export default function MySolicitudes() {
                           Confirmar contratación
                         </Link>
                       )}
+                      {b.status === 'in_escrow' && (
+                        <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-muted">
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Reseña disponible después de completar el servicio.
+                        </p>
+                      )}
+                      {b.status === 'completed' && (
+                        <p className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-lime">
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Servicio realizado — contratación finalizada
+                        </p>
+                      )}
                       {b.status === 'completed' && b.artist?.owner_id && (
                         reviewsByBooking[b.id] ? (
                           <div className="mt-3 rounded-lg border border-line bg-bg-base p-3">
@@ -207,13 +217,16 @@ export default function MySolicitudes() {
                             )}
                           </div>
                         ) : (
-                          <ReviewForm
-                            bookingId={b.id}
-                            artistId={b.artist_id}
-                            clientId={b.client_id}
-                            artistName={b.artist?.name ?? 'el artista'}
-                            onDone={load}
-                          />
+                          <>
+                            <p className="mt-2 text-xs font-semibold text-ink-primary">¿Cómo fue tu experiencia?</p>
+                            <ReviewForm
+                              bookingId={b.id}
+                              artistId={b.artist_id}
+                              clientId={b.client_id}
+                              artistName={b.artist?.name ?? 'el artista'}
+                              onDone={load}
+                            />
+                          </>
                         )
                       )}
                     </div>
@@ -278,6 +291,11 @@ export default function MySolicitudes() {
                         )}
                         <p className="mt-1 text-sm font-semibold text-ink-primary">Precio de referencia: {formatPrice(b.total)}</p>
                         {b.notes && <p className="mt-1 text-sm text-ink-muted">"{b.notes}"</p>}
+                        {b.status === 'completed' && (
+                          <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-lime">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Servicio realizado — contratación finalizada
+                          </p>
+                        )}
                       </div>
 
                       <div className="flex flex-shrink-0 items-center gap-2">

@@ -19,6 +19,8 @@ type Props = {
   suggestions?: string[];
   /** Cuando es true, ocupa todo el alto disponible del contenedor padre en vez del recuadro chico embebido. */
   bare?: boolean;
+  /** Contratación finalizada: se puede seguir consultando el historial, pero no enviar mensajes nuevos. */
+  readOnly?: boolean;
 };
 
 function displayValue(field: NegotiationEvent['field'], value: string): string {
@@ -43,7 +45,7 @@ type TimelineItem =
   | { kind: 'message'; at: string; message: BookingMessage }
   | { kind: 'event'; at: string; event: NegotiationEvent };
 
-export default function BookingMessages({ bookingId, recipientId, onRead, suggestions, bare }: Props) {
+export default function BookingMessages({ bookingId, recipientId, onRead, suggestions, bare, readOnly }: Props) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<BookingMessage[]>([]);
   const [negotiationEvents, setNegotiationEvents] = useState<NegotiationEvent[]>([]);
@@ -155,6 +157,12 @@ export default function BookingMessages({ bookingId, recipientId, onRead, sugges
         </div>
       </div>
 
+      {readOnly ? (
+        <p className="rounded-lg border border-line bg-bg-base px-4 py-3 text-center text-xs text-ink-muted">
+          Chat finalizado — la conversación queda disponible para consulta, pero ya no se pueden enviar nuevos mensajes.
+        </p>
+      ) : (
+        <>
       {suggestions && suggestions.length > 0 && (
         <div className="mb-3 flex flex-wrap gap-2">
           {suggestions.map((s) => (
@@ -185,6 +193,8 @@ export default function BookingMessages({ bookingId, recipientId, onRead, sugges
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </button>
       </form>
+        </>
+      )}
     </div>
   );
 }

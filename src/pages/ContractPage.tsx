@@ -255,6 +255,9 @@ export default function ContractPage() {
   const canSign = canSignAsArtist || canSignAsClient;
   const waitingOnArtistSignature = isClient && !artistSigned && !isPaidAndConfirmed;
   const canPay = isClient && artistSigned && clientSigned && !isPaidAndConfirmed;
+  // Una vez que el servicio se realizó, la contratación queda finalizada: ya no se
+  // aceptan nuevas modificaciones ni negociaciones sobre ella.
+  const canRequestModification = isPaidAndConfirmed && booking.status !== 'completed';
   const pendingModification = events.find((e) => e.status === 'pending' && e.after_signature) ?? null;
   const signatureStatusText = isPaidAndConfirmed
     ? 'Contrato firmado por ambas partes'
@@ -277,7 +280,13 @@ export default function ContractPage() {
           </span>
         </div>
 
-        {isPaidAndConfirmed && (
+        {booking.status === 'completed' && (
+          <div className="mb-6 flex items-center gap-2 rounded-card border border-lime/30 bg-lime/10 p-4 text-sm text-lime print:hidden">
+            <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+            Servicio realizado ✓ — Contratación finalizada.
+          </div>
+        )}
+        {isPaidAndConfirmed && booking.status !== 'completed' && (
           <div className="mb-6 flex items-center gap-2 rounded-card border border-lime/30 bg-lime/10 p-4 text-sm text-lime print:hidden">
             <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
             Contratación confirmada. Ya puedes descargar el contrato en PDF.
@@ -418,8 +427,9 @@ export default function ContractPage() {
         )}
 
         {/* Modificaciones después de firmar — nunca se sobrescribe un contrato firmado en
-            silencio: todo cambio pasa por aprobación y abre una nueva versión. */}
-        {isPaidAndConfirmed && (
+            silencio: todo cambio pasa por aprobación y abre una nueva versión. Se cierran
+            en cuanto el servicio se marca como realizado. */}
+        {canRequestModification && (
           <div className="mb-6 rounded-card border border-line bg-bg-surface p-5 print:hidden">
             <h2 className="mb-1 flex items-center gap-1.5 text-sm font-bold text-ink-primary">
               <History className="h-4 w-4" /> Modificaciones del contrato
